@@ -1,0 +1,21 @@
+version: "3.7"
+
+services:
+  db:
+    image: mysql:8.0.26
+    restart: always
+    environment:
+      MYSQL_DATABASE: "activities"
+      MYSQL_USER: "admin"
+      MYSQL_PASSWORD: "admin"
+      MYSQL_ROOT_PASSWORD: "admin"
+    ports:
+      - 3001:3001
+    volumes:
+      - mysqldb:/var/lib/mysql
+
+volumes:
+  mysqldb: 
+
+
+
