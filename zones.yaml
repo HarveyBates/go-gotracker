@@ -1,0 +1,9 @@
+bike:
+  ZoneOneMin: 0
+  ZoneOneMax: 145
+  ZoneTwoMin: 146
+  ZoneTwoMax: 200
+  ZoneThreeMin: 201
+  ZoneThreeMax: 261
+  ZoneFourMin: 262
+  ZoneFourMax: 2000

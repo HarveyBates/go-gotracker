@@ -9,6 +9,7 @@ import (
 	"github.com/joho/godotenv"
 	"net/http"
 	"io/ioutil"
+	"github.com/wcharczuk/go-chart"
 )
 
 
@@ -62,8 +63,6 @@ func get_strava_refresh_token() RefreshStravaAccess {
 	if err != nil {
 		log.Fatal(err)
 	}
-
-	fmt.Println(string(responseData))
 
 	err = json.Unmarshal(responseData, &refresh)
 
@@ -148,19 +147,104 @@ func get_athlete_stats(accessToken string) AthleteStats {
 	return stats
 }
 
+type WattsStream struct {
+	Watts struct {
+		Data []float64 `json:"data"`
+		SeriesType string `json:"distance"`
+		OriginalSize int `json:"original_size"`
+		Resolution string `json:"resolution"`
+	} `json:"watts"`
+	Distance struct {
+		Data []float64 `json:"data"`
+		SeriesType string `json:"distance"`
+		OriginalSize int `json:"original_size"`
+		Resolution string `json:"high"`
+	}
+}
+func get_activity_watts(activity string, accessToken string) ([]float64, []float64) {
+
+	var watts WattsStream
+
+	var bearer = "Bearer " + accessToken
+	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=watts&key_by_type=true"
+	request, err := http.NewRequest("GET", url, nil)
+	request.Header.Add("Authorization", bearer)
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(responseData, &watts)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer response.Body.Close()
+
+	return watts.Distance.Data, watts.Watts.Data
+}
+
 
 
 func main() {
 
 	refreshToken := get_strava_refresh_token()
 	//fmt.Println(refreshToken.REFRESH_TOKEN)
-
-	stats := get_athlete_stats(refreshToken.ACCESS_TOKEN)
-	fmt.Println(stats.AllRide.Count)
-
-//	jsonResponse, _ := json.Marshal(refreshToken)
-//	fmt.Print(string(jsonResponse))
-
 	
+	//stats := get_athlete_stats(refreshToken.ACCESS_TOKEN)
+//	fmt.Println(stats.AllRide.Count)
+
+	GetBikeZones()
+
+	distanceArr, wattsArr := get_activity_watts("5901981172", refreshToken.ACCESS_TOKEN)
+
+	mainSeries := chart.ContinuousSeries{
+		Name: "Workout Power",
+		Style: chart.Style{
+			Show: true,
+			StrokeColor: chart.GetDefaultColor(0).WithAlpha(64),
+			FillColor: chart.GetDefaultColor(0).WithAlpha(64),
+		},
+		XValues: distanceArr, 
+		YValues: wattsArr, 
+	}
+
+	maSeries := &chart.SMASeries {
+		InnerSeries: mainSeries,
+	}
+
+	graph := chart.Chart{
+		Series: []chart.Series{
+			mainSeries, 
+			maSeries,
+		},
+	}
+
+	pngGraph, err := os.Create("plot.png")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = graph.Render(chart.PNG, pngGraph)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = pngGraph.Close()
+
+	if err != nil {
+		log.Fatal(err)
+	}
 
 }
