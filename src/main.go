@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 	"database/sql"
 	_ "github.com/go-sql-driver/mysql"
 )
@@ -12,28 +13,24 @@ type TestValues struct {
 	DOB string `json:"date_of_birth"`
 }
 
-func SqlConnect(){
+func SqlConnect() *sql.DB{
 	fmt.Println("Attempting to connect to MySQl server...")
 
-	db, err := sql.Open("mysql", "admin:admin@tcp(127.0.0.1:3001)/activities")
+	db, err := sql.Open("mysql", "admin:admin@tcp(127.0.0.1:33060)/gotracker")
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	db.SetConnMaxLifetime(1000)
+	db.SetConnMaxLifetime(time.Minute * 3) // Timeout. Ensures conns close safely.
+	db.SetMaxOpenConns(5)
+	db.SetMaxIdleConns(5)
 
-	defer db.Close()
+	return db
+}
 
-	fmt.Println("Creating table in db...")
+func SecondDB(db *sql.DB){
 
-	create, err := db.Query("CREATE TABLE [IF NOT EXISTS] test ( ID int, NAME varchar(255) )")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer create.Close()
 
 	fmt.Println("Inserting values in table...")
 
@@ -46,10 +43,37 @@ func SqlConnect(){
 	defer insert.Close()
 }
 
+func PopulateStatsTable(db *sql.DB){
+	fmt.Println("Creating \"recent_stats\" table in db...")
+
+	create, err := db.Query("CREATE TABLE IF NOT EXISTS recent_stats (created_at datetime default CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float, achievement_count int)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer create.Close()
+
+	statement := "INSERT INTO recent_stats (created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain, achievement_count) VALUES (`$1`, `$2`, `$3`, `$4`, `$5`, `$6`, `$7`)"
+	
+	_, err = db.Exec(statement, 1, 12.0, 10, 10, 111.1, 1)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+}
+
+
 
 func main() {
 
-	SqlConnect()
+	db := SqlConnect()
+
+	//SecondDB(db)
+
+	PopulateStatsTable(db)
+
+	db.Close()
 
 
 //	refreshToken := GetRefreshToken()
