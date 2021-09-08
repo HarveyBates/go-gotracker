@@ -29,54 +29,22 @@ func SqlConnect() *sql.DB{
 	return db
 }
 
-func SecondDB(db *sql.DB){
-
-
-	fmt.Println("Inserting values in table...")
-
-	insert, err := db.Query("INSERT INTO test VALUES ( 2, 'TEST' )")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer insert.Close()
-}
-
-func PopulateStatsTable(db *sql.DB){
-	fmt.Println("Creating \"recent_stats\" table in db...")
-
-	create, err := db.Query("CREATE TABLE IF NOT EXISTS recent_stats (created_at datetime default CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float, achievement_count int)")
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer create.Close()
-
-	statement := "INSERT INTO recent_stats (created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain, achievement_count) VALUES (`$1`, `$2`, `$3`, `$4`, `$5`, `$6`, `$7`)"
-	
-	_, err = db.Exec(statement, 1, 12.0, 10, 10, 111.1, 1)
-
-	if err != nil{
-		log.Fatal(err)
-	}
-}
-
-
 
 func main() {
 
 	db := SqlConnect()
 
-	//SecondDB(db)
+	token := GetRefreshToken()
+	stats := GetStats(token)
 
-	PopulateStatsTable(db)
+	// Totals - Recent, YTD, All-time
+	PopulateRunStats(db, stats)
+	PopulateRideStats(db, stats)
+	PopulateSwimStats(db, stats)
+
+//	PopulateStatsTable(db)
 
 	db.Close()
-
-
-//	refreshToken := GetRefreshToken()
 
 //	distanceArr, wattsArr := GetWatts("5901981172", refreshToken)
 

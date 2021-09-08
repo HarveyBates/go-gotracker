@@ -1,10 +1,13 @@
 package main 
 
 import (
+	"time"
 	"encoding/json"
 	"log"
 	"net/http"
 	"io/ioutil"
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 type RecentTotals struct {
@@ -62,7 +65,7 @@ func GetStats(accessToken string) AthleteStats {
 	}
 
 	responseData, err := ioutil.ReadAll(response.Body)
-
+	
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -79,5 +82,249 @@ func GetStats(accessToken string) AthleteStats {
 }
 
 
+func PopulateRunStats(db *sql.DB, stats AthleteStats){
+
+	createRecent, err := db.Query("CREATE TABLE IF NOT EXISTS recent_run_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float, achievement_count int)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createRecent.Close()
+
+	statementRecent, err := db.Prepare("INSERT INTO recent_run_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain, achievement_count) VALUES (?, ?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementRecent.Exec(
+		time.Now(), 
+		stats.RecentRun.Count, 
+		stats.RecentRun.Distance, 
+		stats.RecentRun.MovingTime, 
+		stats.RecentRun.ElapsedTime,
+		stats.RecentRun.ElevationGain,
+		stats.RecentRun.AcheivementCount)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createYtd, err := db.Query("CREATE TABLE IF NOT EXISTS ytd_run_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createYtd.Close()
+
+	statementYtd, err := db.Prepare("INSERT INTO ytd_run_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementYtd.Exec(
+		time.Now(), 
+		stats.AllRun.Count, 
+		stats.AllRun.Distance, 
+		stats.AllRun.MovingTime, 
+		stats.AllRun.ElapsedTime,
+		stats.AllRun.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createAll, err := db.Query("CREATE TABLE IF NOT EXISTS all_run_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createAll.Close()
+
+	statementAll, err := db.Prepare("INSERT INTO all_run_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementAll.Exec(
+		time.Now(), 
+		stats.AllRun.Count, 
+		stats.AllRun.Distance, 
+		stats.AllRun.MovingTime, 
+		stats.AllRun.ElapsedTime,
+		stats.AllRun.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+}
+
+func PopulateRideStats(db *sql.DB, stats AthleteStats){
+
+	createRecent, err := db.Query("CREATE TABLE IF NOT EXISTS recent_ride_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float, achievement_count int)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createRecent.Close()
+
+	statementRecent, err := db.Prepare("INSERT INTO recent_ride_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain, achievement_count) VALUES (?, ?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementRecent.Exec(
+		time.Now(), 
+		stats.RecentRide.Count, 
+		stats.RecentRide.Distance, 
+		stats.RecentRide.MovingTime, 
+		stats.RecentRide.ElapsedTime,
+		stats.RecentRide.ElevationGain,
+		stats.RecentRide.AcheivementCount)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createYtd, err := db.Query("CREATE TABLE IF NOT EXISTS ytd_ride_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createYtd.Close()
+
+	statementYtd, err := db.Prepare("INSERT INTO ytd_ride_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementYtd.Exec(
+		time.Now(), 
+		stats.YTDRide.Count, 
+		stats.YTDRide.Distance, 
+		stats.YTDRide.MovingTime, 
+		stats.YTDRide.ElapsedTime,
+		stats.YTDRide.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createAll, err := db.Query("CREATE TABLE IF NOT EXISTS all_ride_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createAll.Close()
+
+	statementAll, err := db.Prepare("INSERT INTO all_ride_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementAll.Exec(
+		time.Now(), 
+		stats.AllRide.Count, 
+		stats.AllRide.Distance, 
+		stats.AllRide.MovingTime, 
+		stats.AllRide.ElapsedTime,
+		stats.AllRide.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+}
 
 
+func PopulateSwimStats(db *sql.DB, stats AthleteStats){
+
+	createRecent, err := db.Query("CREATE TABLE IF NOT EXISTS recent_swim_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float, achievement_count int)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createRecent.Close()
+
+	statementRecent, err := db.Prepare("INSERT INTO recent_swim_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain, achievement_count) VALUES (?, ?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementRecent.Exec(
+		time.Now(), 
+		stats.RecentSwim.Count, 
+		stats.RecentSwim.Distance, 
+		stats.RecentSwim.MovingTime, 
+		stats.RecentSwim.ElapsedTime,
+		stats.RecentSwim.ElevationGain,
+		stats.RecentSwim.AcheivementCount)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createYtd, err := db.Query("CREATE TABLE IF NOT EXISTS ytd_swim_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createYtd.Close()
+
+	statementYtd, err := db.Prepare("INSERT INTO ytd_swim_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementYtd.Exec(
+		time.Now(), 
+		stats.YTDSwim.Count, 
+		stats.YTDSwim.Distance, 
+		stats.YTDSwim.MovingTime, 
+		stats.YTDSwim.ElapsedTime,
+		stats.YTDSwim.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	createAll, err := db.Query("CREATE TABLE IF NOT EXISTS all_swim_stats (created_at datetime DEFAULT CURRENT_TIMESTAMP, n_activities int, distance float, moving_time int, elapsed_time int, elevation_gain float)")
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createAll.Close()
+
+	statementAll, err := db.Prepare("INSERT INTO all_swim_stats(created_at, n_activities, distance, moving_time, elapsed_time, elevation_gain) VALUES (?, ?, ?, ?, ?, ?)")
+
+	if err != nil{
+		log.Fatal(err)
+	}
+
+	_, err = statementAll.Exec(
+		time.Now(), 
+		stats.AllSwim.Count, 
+		stats.AllSwim.Distance, 
+		stats.AllSwim.MovingTime, 
+		stats.AllSwim.ElapsedTime,
+		stats.AllSwim.ElevationGain)
+
+	if err != nil{
+		log.Fatal(err)
+	}
+}
