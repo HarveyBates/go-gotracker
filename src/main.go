@@ -35,12 +35,15 @@ func main() {
 	db := SqlConnect()
 
 	token := GetRefreshToken()
-	stats := GetStats(token)
+
+	GetActivity(token)
+
+	//stats := GetStats(token)
 
 	// Totals - Recent, YTD, All-time
-	PopulateRunStats(db, stats)
-	PopulateRideStats(db, stats)
-	PopulateSwimStats(db, stats)
+	//PopulateRunStats(db, stats)
+	//PopulateRideStats(db, stats)
+	//PopulateSwimStats(db, stats)
 
 //	PopulateStatsTable(db)
 
