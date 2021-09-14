@@ -2,11 +2,14 @@ package main
 
 import (
 	"fmt"
+	"strconv"
 	"reflect"
 	"encoding/json"
 	"log"
 	"net/http"
 	"io/ioutil"
+	"database/sql"
+	_ "github.com/go-sql-driver/mysql"
 )
 
 
@@ -37,12 +40,12 @@ type Activity struct {
 	MaxElevation 	float64 `json:"elev_high"`
 	MinElevation 	float64 `json:"elev_low"`
 }
-func GetActivity(accessToken string) []Activity {
+func GetActivity(accessToken string, nResults int) []Activity {
 
 	var activity []Activity
 
 	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=2" 
+	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=1"
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
@@ -197,6 +200,8 @@ func GetCadence(activity string, accessToken string) ([]float64, []float64) {
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
+	fmt.Println(url, accessToken)
+
 	client := &http.Client{}
 	response, err := client.Do(request)
 	
@@ -221,3 +226,63 @@ func GetCadence(activity string, accessToken string) ([]float64, []float64) {
 	return cadence.Distance.Data, cadence.Cadence.Data
 }
 
+func PopulateRide(db *sql.DB, activity []Activity, accessToken string){
+	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS ride_activities (name text, total_distance float, moving_time int, elapsed_time int, type text, activity_id int, external_id text, start_date datetime, start_date_local datetime, map_polyline text, av_speed float, max_speed float, av_cadence float, normalised_watts float, max_watts int, kilojoules float, has_heartrate bool, av_heartrate float, max_heartrate float, elevation_gain float, max_elevation float, min_elevation float, cadence text, watts text, distance text, heartrate text)")	
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer createRide.Close()
+
+	distance, _ := GetCadence(strconv.FormatInt(activity[0].ID, 10), accessToken)
+
+	strDistance := "" 
+	for index, value := range distance {
+		if index != len(distance) - 1{
+			strDistance += fmt.Sprint(value) + ", "
+		} else {
+			strDistance += fmt.Sprint(value)
+		}
+	}
+
+	fmt.Println(strDistance)
+
+//	_, heartRate = GetHeartRate(activity.ID, accessToken)
+//
+//	_, watts = GetWatts(activity.ID, accessToken)
+//
+//	statement, err := db.Prepare("INSERT INTO ride_activites (name, distance, moving_time, elapsed_time, type, activity_id, external_id, start_date, start_date_local, map_polyline, av_speed, max_speed, av_cadence, normalised_watts, max_watts, kilojoules, has_heartrate, av_heartrate, max_heartrate, elevation_gain, max_elevation, min_elevation, cadence, watts, distance, heartrate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+//
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	_, err = statement.Recent.Exec(
+//		activity.Name, 
+//		activity.Distance,
+//		acitivty.MovingTime,
+//		activity.ElapsedTime, 
+//		activity.Type,
+//		activity.ID, 
+//		activity.ExternalID, 
+//		activity.StartDate, 
+//		activity.StartDateLocal, 
+//		activity.Map.SummaryPolyline,
+//		activity.AvSpeed, 
+//		activity.MaxSpeed, 
+//		activity.AvCadence, 
+//		activity.AvWatts,
+//		activity.NormWatts, 
+//		activity.MaxWatts,
+//		activity.Kilojoules,
+//		activity.HasHeartRate,
+//		activity.AvHeartRate,
+//		activity.MaxHeartRate,
+//		activity.ElevationGain,
+//		activity.MaxElevation,
+//		activity.MinElevation
+//	)
+
+
+}

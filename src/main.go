@@ -36,7 +36,9 @@ func main() {
 
 	token := GetRefreshToken()
 
-	GetActivity(token)
+	activity := GetActivity(token, 1)
+
+	PopulateRide(db, activity, token)
 
 	//stats := GetStats(token)
 
