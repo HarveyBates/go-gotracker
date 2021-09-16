@@ -5,7 +5,7 @@ import (
 	"log"
 	"time"
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 type TestValues struct {
@@ -13,10 +13,22 @@ type TestValues struct {
 	DOB string `json:"date_of_birth"`
 }
 
-func SqlConnect() *sql.DB{
-	fmt.Println("Attempting to connect to MySQl server...")
 
-	db, err := sql.Open("mysql", "admin:admin@tcp(127.0.0.1:33060)/gotracker")
+const (
+	hostname = "127.0.0.1"
+	port = 27222
+	username = "postgres"
+	password = "admin"
+	dbname= "go-gotracker"
+)
+
+func SqlConnect() *sql.DB{
+	fmt.Print("Attempting to connect to db... ")
+
+	conn := fmt.Sprintf("port=%d host=%s user=%s password=%s dbname=%s sslmode=disable",
+		port, hostname, username, password, dbname)
+
+	db, err := sql.Open("postgres", conn)	
 
 	if err != nil {
 		log.Fatal(err)
@@ -25,6 +37,8 @@ func SqlConnect() *sql.DB{
 	db.SetConnMaxLifetime(time.Minute * 3) // Timeout. Ensures conns close safely.
 	db.SetMaxOpenConns(5)
 	db.SetMaxIdleConns(5)
+
+	fmt.Println("Connected")
 
 	return db
 }

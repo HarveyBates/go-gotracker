@@ -2,20 +2,19 @@ version: "3.7"
 
 services:
   sqldb:
-    image: mysql:8.0.26
+    image: postgres:latest
     restart: always
     environment:
-      MYSQL_DATABASE: "gotracker" 
-      MYSQL_USER: "admin"
-      MYSQL_PASSWORD: "admin"
-      MYSQL_ROOT_PASSWORD: "admin"
+      POSTGRES_DATABASE: go-tracker 
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
     ports:
-      - 33060:3306
+      - 27222:5432
     volumes:
-       - ./mysqldb:/var/lib/mysql
+       - ./db:/var/lib/postgres
 
 volumes:
-  gotracker: 
+  go-tracker: 
 
 
 

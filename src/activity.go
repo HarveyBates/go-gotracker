@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"io/ioutil"
 	"database/sql"
-	_ "github.com/go-sql-driver/mysql"
+	_ "github.com/lib/pq"
 )
 
 
@@ -200,8 +200,6 @@ func GetCadence(activity string, accessToken string) ([]float64, []float64) {
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
-	fmt.Println(url, accessToken)
-
 	client := &http.Client{}
 	response, err := client.Do(request)
 	
@@ -226,8 +224,9 @@ func GetCadence(activity string, accessToken string) ([]float64, []float64) {
 	return cadence.Distance.Data, cadence.Cadence.Data
 }
 
+
 func PopulateRide(db *sql.DB, activity []Activity, accessToken string){
-	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS ride_activities (name text, total_distance float, moving_time int, elapsed_time int, type text, activity_id int, external_id text, start_date datetime, start_date_local datetime, map_polyline text, av_speed float, max_speed float, av_cadence float, normalised_watts float, max_watts int, kilojoules float, has_heartrate bool, av_heartrate float, max_heartrate float, elevation_gain float, max_elevation float, min_elevation float, cadence text, watts text, distance text, heartrate text)")	
+	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS ride_activities (name text, total_distance float, moving_time int, elapsed_time int, type text, activity_id int, external_id text, start_date date, start_date_local date, map_polyline text, av_speed float, max_speed float, av_cadence float, normalised_watts float, max_watts int, kilojoules float, has_heartrate bool, av_heartrate float, max_heartrate float, elevation_gain float, max_elevation float, min_elevation float, cadence text, watts text, distance text, heartrate text)")	
 
 	if err != nil {
 		log.Fatal(err)
@@ -235,7 +234,8 @@ func PopulateRide(db *sql.DB, activity []Activity, accessToken string){
 
 	defer createRide.Close()
 
-	distance, _ := GetCadence(strconv.FormatInt(activity[0].ID, 10), accessToken)
+	// Get Cadence and Distance
+	distance, cadence := GetCadence(strconv.FormatInt(activity[0].ID, 10), accessToken)
 
 	strDistance := "" 
 	for index, value := range distance {
@@ -246,12 +246,43 @@ func PopulateRide(db *sql.DB, activity []Activity, accessToken string){
 		}
 	}
 
-	fmt.Println(strDistance)
+	strCadence := "" 
+	for index, value := range cadence {
+		if index != len(cadence) - 1{
+			strCadence += fmt.Sprint(value) + ", "
+		} else {
+			strCadence += fmt.Sprint(value)
+		}
+	}
 
-//	_, heartRate = GetHeartRate(activity.ID, accessToken)
-//
-//	_, watts = GetWatts(activity.ID, accessToken)
-//
+	// Get heart rate
+	_, heartRate = GetHeartRate(activity.ID, accessToken)
+
+	strHeartrate := "" 
+	for index, value := range heartRate {
+		if index != len(heartRate) - 1{
+			strHeartrate += fmt.Sprint(value) + ", "
+		} else {
+			strHeartrate += fmt.Sprint(value)
+		}
+	}
+
+
+	// Get watts
+	_, watts = GetWatts(activity.ID, accessToken)
+
+	strWatts := "" 
+	for index, value := range watts {
+		if index != len(watts) - 1{
+			strWatts += fmt.Sprint(value) + ", "
+		} else {
+			strWatts += fmt.Sprint(value)
+		}
+	}
+	
+	// TODO needs some error handling for no-existant values
+
+	
 //	statement, err := db.Prepare("INSERT INTO ride_activites (name, distance, moving_time, elapsed_time, type, activity_id, external_id, start_date, start_date_local, map_polyline, av_speed, max_speed, av_cadence, normalised_watts, max_watts, kilojoules, has_heartrate, av_heartrate, max_heartrate, elevation_gain, max_elevation, min_elevation, cadence, watts, distance, heartrate) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
 //
 //	if err != nil {
