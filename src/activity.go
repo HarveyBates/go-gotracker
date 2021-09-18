@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"strconv"
-	"reflect"
+	//"reflect"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -46,7 +46,7 @@ func GetActivity(accessToken string, nResults int) []Activity {
 	var activity []Activity
 
 	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=1"
+	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=10"
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
@@ -71,12 +71,12 @@ func GetActivity(accessToken string, nResults int) []Activity {
 
 	defer response.Body.Close()
 
-	for _, items := range activity {
-		value := reflect.ValueOf(items)
-		for i := 0; i < value.NumField(); i++ {
-			fmt.Println(value.Field(i))
-		}
-	}
+//	for _, items := range activity {
+//		value := reflect.ValueOf(items)
+//		for i := 0; i < value.NumField(); i++ {
+//			fmt.Println(value.Field(i))
+//		}
+//	}
 
 	return activity
 }
@@ -283,44 +283,62 @@ func PopulateRide(db *sql.DB, activities []Activity, accessToken string){
 
 	defer createRide.Close()
 
-	// Convert to json objects
-	activity, err := json.Marshal(activities[0])
+	for _, activity := range activities {
 
-	// Get distance
-	distanceStruct := GetDistance(strconv.FormatInt(activities[0].ID, 10), accessToken)
-	distance, err := json.Marshal(distanceStruct)
+		var exists bool
+		query := fmt.Sprintf("SELECT EXISTS(SELECT id FROM ride_activities WHERE id = %s)", strconv.FormatInt(activity.ID, 10))
 
-	// Get Cadence
-	cadenceStruct := GetCadence(strconv.FormatInt(activities[0].ID, 10), accessToken)
-	cadence, err := json.Marshal(cadenceStruct)
+		err := db.QueryRow(query).Scan(&exists)
+		
+		if err != nil{
+			fmt.Println("ewensds")
+			log.Fatal(err)
+		}
 
-	// Get heart rate
-	hrStruct := GetHeartRate(strconv.FormatInt(activities[0].ID, 10), accessToken)
-	heartRate, err := json.Marshal(hrStruct)
+		fmt.Println(exists)
 
-	// Get watts
-	wattsStruct := GetWatts(strconv.FormatInt(activities[0].ID, 10), accessToken)
-	watts, err := json.Marshal(wattsStruct)
+		if(!exists) {
+			// Convert to json objects
+			activityStruct, err := json.Marshal(activity)
 
-	statementRide, err := db.Prepare("INSERT INTO ride_activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+			// Get distance
+			distanceStruct := GetDistance(strconv.FormatInt(activity.ID, 10), accessToken)
+			distance, err := json.Marshal(distanceStruct)
 
-	if err != nil {
-		log.Fatal(err)
+			// Get Cadence
+			cadenceStruct := GetCadence(strconv.FormatInt(activity.ID, 10), accessToken)
+			cadence, err := json.Marshal(cadenceStruct)
+
+			// Get heart rate
+			hrStruct := GetHeartRate(strconv.FormatInt(activity.ID, 10), accessToken)
+			heartRate, err := json.Marshal(hrStruct)
+
+			// Get watts
+			wattsStruct := GetWatts(strconv.FormatInt(activity.ID, 10), accessToken)
+			watts, err := json.Marshal(wattsStruct)
+
+			statementRide, err := db.Prepare("INSERT INTO ride_activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			_, err = statementRide.Exec(
+				activity.Name, 
+				activity.Type,
+				activity.ID, 
+				activity.StartDateLocal,
+				string(activityStruct),
+				string(distance), 
+				string(cadence), 
+				string(heartRate), 
+				string(watts))
+
+			if err != nil{
+				log.Fatal(err)
+			}
+		} else {
+			fmt.Println("Activity already exists")	
+		}
 	}
-
-	_, err = statementRide.Exec(
-		activities[0].Name, 
-		activities[0].Type,
-		activities[0].ID, 
-		activities[0].StartDateLocal,
-		string(activity),
-		string(distance), 
-		string(cadence), 
-		string(heartRate), 
-		string(watts))
-
-	if err != nil{
-		log.Fatal(err)
-	}
-
 }

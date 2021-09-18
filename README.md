@@ -19,3 +19,6 @@ createdb -U postgres go-gotracker # Create database
 \c <database> # Change to db
 \dt # List tables
 ```
+```SQL
+SELECT name, id, start_date_local FROM ride_activities WHERE attributes->>'type' = 'Run';
+```
