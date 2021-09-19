@@ -42,11 +42,18 @@ type Activity struct {
 }
 
 func GetActivity(accessToken string, nResults int) []Activity {
+	/* Gets an array of activities from Strava.
+	 *
+	 * @param accessToken Token from Strava to access API.
+	 * @param nResults Number of results to return (size of array)
+	 *
+	 * @return activity An array of activities.
+	 */
 
 	var activity []Activity
 
 	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=10"
+	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=200"
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
@@ -268,14 +275,13 @@ func GetWatts(activity string, accessToken string) []float64 {
 }
 
 
-func PopulateRide(db *sql.DB, activities []Activity, accessToken string){
+func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 	/*
-	 * Populate new table (ride_activities) with indexing values (i.e. name, id etc.) and 
+	 * Populate new table (activities) with indexing values (i.e. name, id etc.) and 
 	 * JSONB responses from strava.
 	 */
 
-	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS ride_activities (name text, type text, id bigint, start_date_local date, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb)")	
-
+	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local date, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb)")	
 
 	if err != nil {
 		log.Fatal(err)
@@ -286,18 +292,18 @@ func PopulateRide(db *sql.DB, activities []Activity, accessToken string){
 	for _, activity := range activities {
 
 		var exists bool
-		query := fmt.Sprintf("SELECT EXISTS(SELECT id FROM ride_activities WHERE id = %s)", strconv.FormatInt(activity.ID, 10))
+		query := fmt.Sprintf("SELECT EXISTS(SELECT id FROM activities WHERE id = %s)", strconv.FormatInt(activity.ID, 10))
 
 		err := db.QueryRow(query).Scan(&exists)
 		
 		if err != nil{
-			fmt.Println("ewensds")
 			log.Fatal(err)
 		}
 
-		fmt.Println(exists)
-
 		if(!exists) {
+			
+			fmt.Println("Adding activity:\t", activity.Name)
+
 			// Convert to json objects
 			activityStruct, err := json.Marshal(activity)
 
@@ -317,7 +323,7 @@ func PopulateRide(db *sql.DB, activities []Activity, accessToken string){
 			wattsStruct := GetWatts(strconv.FormatInt(activity.ID, 10), accessToken)
 			watts, err := json.Marshal(wattsStruct)
 
-			statementRide, err := db.Prepare("INSERT INTO ride_activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+			statementRide, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
 
 			if err != nil {
 				log.Fatal(err)
@@ -338,7 +344,7 @@ func PopulateRide(db *sql.DB, activities []Activity, accessToken string){
 				log.Fatal(err)
 			}
 		} else {
-			fmt.Println("Activity already exists")	
+			fmt.Println(activity.Name, "\talready exists... skipping")	
 		}
 	}
 }

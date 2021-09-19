@@ -52,8 +52,7 @@ func main() {
 
 	activity := GetActivity(token, 1)
 
-	PopulateRide(db, activity, token)
-
+	PopulateActivites(db, activity, token)
 	//stats := GetStats(token)
 
 	// Totals - Recent, YTD, All-time
