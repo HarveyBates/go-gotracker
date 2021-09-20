@@ -53,7 +53,7 @@ func GetActivity(accessToken string, nResults int) []Activity {
 	var activity []Activity
 
 	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/athlete/activities/?per_page=200"
+	url := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities/?per_page=%d", nResults) 
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
