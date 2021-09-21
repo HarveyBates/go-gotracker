@@ -1,6 +1,8 @@
 
+![activity plot](imgs/prelim-plot.png)
 
 Useful commands
+
 
 ```bash
 docker-compose up -d # Run docker

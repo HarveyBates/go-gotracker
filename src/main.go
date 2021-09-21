@@ -52,7 +52,7 @@ func main() {
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		ActivitiyChart(w, r, db)
 	})
-	http.ListenAndServe(":8081", nil)
+	http.ListenAndServe(":8080", nil)
 
 
 //	token := GetRefreshToken()
