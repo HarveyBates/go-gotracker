@@ -8,10 +8,26 @@ import (
 	"database/sql"
 	"net/http"
 	_ "github.com/lib/pq"
+	"html/template"
+	"bytes"
 	"github.com/go-echarts/go-echarts/v2/charts"
 	"github.com/go-echarts/go-echarts/v2/opts"
 	"github.com/go-echarts/go-echarts/v2/types"
+	chartrender "github.com/go-echarts/go-echarts/v2/render"
 )
+
+func renderToHtml(c interface{}) template.HTML {
+	var buf bytes.Buffer
+	r := c.(chartrender.Renderer)
+	err := r.Render(&buf)
+	if err != nil {
+		log.Printf("Failed to render chart: %s", err)
+		return ""
+	}
+
+	return template.HTML(buf.String())
+}
+
 
 func StringToLineData(values string) []opts.LineData {
 
@@ -113,5 +129,14 @@ func ActivitiyChart(w http.ResponseWriter, _ *http.Request, db *sql.DB){
 			charts.WithLineChartOpts(opts.LineChart{Smooth: true}),
 			charts.WithMarkLineNameTypeItemOpts(opts.MarkLineNameTypeItem{Name: "Avg", Type: "average"}),)
 
-	line.Render(w)
+			tmpl, err := template.New("Test").Parse(`<div>{{.}}</div>`)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	ActivityChart := renderToHtml(line)
+
+	tmpl.Execute(w, ActivityChart)
+
 }
