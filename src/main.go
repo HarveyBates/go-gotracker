@@ -5,7 +5,6 @@ import (
 	"log"
 	"time"
 	"database/sql"
-	"net/http"
 	_ "github.com/lib/pq"
 )
 
@@ -49,17 +48,15 @@ func main() {
 
 	db := SqlConnect()
 
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		ActivitiyChart(w, r, db)
-	})
-	http.ListenAndServe(":8080", nil)
+	// API Rotuer
+	HandleRequests(db)
 
-
+	// Get activities
 //	token := GetRefreshToken()
-
 //	activity := GetActivity(token, 10)
-
 //	PopulateActivites(db, activity, token)
+
+
 	//stats := GetStats(token)
 
 	// Totals - Recent, YTD, All-time

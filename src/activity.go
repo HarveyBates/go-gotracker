@@ -97,7 +97,7 @@ type DistanceStream struct {
 		Resolution string `json:"high"`
 	} `json:"distance"`
 }
-func GetDistance(activity string, accessToken string) []float64 {
+func GetDistance(activity string, accessToken string) DistanceStream {
 
 	var distance DistanceStream 
 
@@ -127,7 +127,7 @@ func GetDistance(activity string, accessToken string) []float64 {
 
 	defer response.Body.Close()
 
-	return distance.Distance.Data
+	return distance
 }
 
 
@@ -145,7 +145,7 @@ type CadenceStream struct {
 		Resolution string `json:"high"`
 	} `json:"distance"`
 }
-func GetCadence(activity string, accessToken string) []float64 {
+func GetCadence(activity string, accessToken string) CadenceStream {
 
 	var cadence CadenceStream 
 
@@ -175,7 +175,7 @@ func GetCadence(activity string, accessToken string) []float64 {
 
 	defer response.Body.Close()
 
-	return cadence.Cadence.Data
+	return cadence
 }
 
 
@@ -193,9 +193,9 @@ type HeartrateStream struct {
 		Resolution string `json:"high"`
 	} `json:"distance"`
 }
-func GetHeartRate(activity string, accessToken string) []float64 {
+func GetHeartRate(activity string, accessToken string) HeartrateStream {
 
-	var hr HeartrateStream
+	var heartRate HeartrateStream
 
 	var bearer = "Bearer " + accessToken
 	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=heartrate&key_by_type=true"
@@ -215,7 +215,7 @@ func GetHeartRate(activity string, accessToken string) []float64 {
 		log.Fatal(err)
 	}
 
-	err = json.Unmarshal(responseData, &hr)
+	err = json.Unmarshal(responseData, &heartRate)
 	
 	if err != nil {
 		log.Fatal(err)
@@ -223,7 +223,7 @@ func GetHeartRate(activity string, accessToken string) []float64 {
 
 	defer response.Body.Close()
 
-	return hr.Heartrate.Data
+	return heartRate 
 }
 
 
@@ -241,7 +241,7 @@ type WattsStream struct {
 		Resolution string `json:"high"`
 	} `json:"distance"`
 }
-func GetWatts(activity string, accessToken string) []float64 {
+func GetWatts(activity string, accessToken string) WattsStream {
 
 	var watts WattsStream
 
@@ -271,7 +271,7 @@ func GetWatts(activity string, accessToken string) []float64 {
 
 	defer response.Body.Close()
 
-	return watts.Watts.Data
+	return watts
 }
 
 
@@ -302,7 +302,7 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 
 		if(!exists) {
 			
-			fmt.Println("Adding activity:\t", activity.Name)
+			fmt.Println("Adding activity:\t", activity.Name, activity.ID)
 
 			// Convert to json objects
 			activityStruct, err := json.Marshal(activity)
@@ -323,22 +323,22 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 			wattsStruct := GetWatts(strconv.FormatInt(activity.ID, 10), accessToken)
 			watts, err := json.Marshal(wattsStruct)
 
-			statementRide, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+			statement, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
 
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			_, err = statementRide.Exec(
+			_, err = statement.Exec(
 				activity.Name, 
 				activity.Type,
 				activity.ID, 
 				activity.StartDateLocal,
-				string(activityStruct),
-				string(distance), 
-				string(cadence), 
-				string(heartRate), 
-				string(watts))
+				activityStruct,
+				distance, 
+				cadence, 
+				heartRate, 
+				watts)
 
 			if err != nil{
 				log.Fatal(err)
