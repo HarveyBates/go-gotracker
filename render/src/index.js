@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import Page from './views/plot';
+import Chart from './views/plot';
 
 ReactDOM.render(
   <React.StrictMode>
-	<Page />
+	<Chart />
   </React.StrictMode>,
   document.getElementById('root')
 );
