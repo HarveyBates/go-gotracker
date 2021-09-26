@@ -45,7 +45,7 @@ type ActivityStream struct {
 	Watts Stream `db:"watts_stream"`
 	Distance Stream `db:"distance_stream"`
 }
-func GetActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
+func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -86,7 +86,7 @@ func HandleRequests(db *sql.DB) {
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/activity/stream/{id}", func(w http.ResponseWriter, r *http.Request) {
-		GetActivity(w, r, db)
+		ServeActivity(w, r, db)
 	})
 
 	http.ListenAndServe(":8080", router)

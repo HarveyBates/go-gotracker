@@ -138,12 +138,6 @@ type CadenceStream struct {
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"resolution"`
 	} `json:"cadence"`
-	Distance struct {
-		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"high"`
-	} `json:"distance"`
 }
 func GetCadence(activity string, accessToken string) CadenceStream {
 
@@ -186,12 +180,6 @@ type HeartrateStream struct {
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"resolution"`
 	} `json:"heartrate"`
-	Distance struct {
-		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"high"`
-	} `json:"distance"`
 }
 func GetHeartRate(activity string, accessToken string) HeartrateStream {
 
@@ -234,12 +222,6 @@ type WattsStream struct {
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"resolution"`
 	} `json:"watts"`
-	Distance struct {
-		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"high"`
-	} `json:"distance"`
 }
 func GetWatts(activity string, accessToken string) WattsStream {
 
