@@ -263,7 +263,7 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 	 * JSONB responses from strava.
 	 */
 
-	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local date, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb)")	
+	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local text, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb)")	
 
 	if err != nil {
 		log.Fatal(err)

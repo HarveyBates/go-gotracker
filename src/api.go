@@ -39,7 +39,7 @@ func (s *Stream) Scan(src interface{}) error {
 
 type ActivityStream struct {
 	Name string `db:"name"`
-	Date string `db:"date"`
+	Attributes Stream `db:"attributes"`	
 	HeartRate Stream `db:"heartrate_stream"`
 	Cadence Stream `db:"cadence_stream"`
 	Watts Stream `db:"watts_stream"`
@@ -50,7 +50,7 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	query := fmt.Sprintf("SELECT name, start_date_local, heartrate_stream, cadence_stream, watts_stream, distance_stream FROM activities WHERE id='%s'", id)
+	query := fmt.Sprintf("SELECT name, attributes, heartrate_stream, cadence_stream, watts_stream, distance_stream FROM activities WHERE id='%s'", id)
 
 	rows, err := db.Query(query)
 
@@ -61,7 +61,7 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	s := ActivityStream{}
 
 	for rows.Next() {
-		err := rows.Scan(&s.Name, &s.Date, &s.HeartRate, &s.Cadence, &s.Watts, &s.Distance)
+		err := rows.Scan(&s.Name, &s.Attributes, &s.HeartRate, &s.Cadence, &s.Watts, &s.Distance)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -78,6 +78,7 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	fmt.Println("GET: Activity Stream")
 
 }
+
 
 
 func HandleRequests(db *sql.DB) {

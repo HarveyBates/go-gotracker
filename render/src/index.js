@@ -1,11 +1,11 @@
 import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
-import Chart from './views/plot';
+import Activities from './views/activities';
 
 ReactDOM.render(
   <React.StrictMode>
-	<Chart />
+	<Activities />
   </React.StrictMode>,
   document.getElementById('root')
 );
