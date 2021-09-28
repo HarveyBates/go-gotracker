@@ -3,6 +3,7 @@ import ReactECharts from 'echarts-for-react';
 import './activities.css';
 import moment from 'moment';
 
+
 class Activities extends React.Component {
 	constructor() {
 		super();
@@ -42,7 +43,7 @@ class Activities extends React.Component {
 	}
 
 	render() {
-
+		
 		if (this.state.data.length === 0) {
 			return (<div>
 				<p> Loading chart... </p>
