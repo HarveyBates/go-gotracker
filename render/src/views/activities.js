@@ -187,7 +187,7 @@ class Activities extends React.Component {
 				<div className="main-container">
 					<div className="chart">
 						<button className="btn btn-secondary" onClick={this.updateContent}>
-							Click Me
+							Previous workout
 						</button>
 						<ReactECharts option={options} 
 							theme={'macarons'} 
