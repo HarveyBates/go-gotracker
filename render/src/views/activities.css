@@ -1,17 +1,24 @@
 .main-container{
+	height: auto;
+	width: auto;
+	padding: 1rem;
+	margin: 1rem;
+}
+
+.chart-map {
+	display: flex;
+	flex-wrap: wrap;
+	flex-direction: row;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
 	padding: 1rem;
 	margin: 1rem;
 }
 	
 .chart{
+	height: inherit;
+	min-width: 800px;
 	justify-content: space-around;
 	align-items: center;
-	margin: auto;
-	margin-bottom: 1rem;
-	width: 75vw;
-	height: 50vh;
-	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-	padding: 2rem;
 }
 
 .activity-table{

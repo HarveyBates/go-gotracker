@@ -10,16 +10,16 @@ export default class Map extends React.Component {
 	constructor() {
 		super();
 		this.state = {
-			lat: -33.2835,
-			lng: 149.101273,
-			zoom: 13,
+			lat: -33.335,
+			lng: 150.521273,
+			zoom: 9,
 		};
 		this.mapContainer = React.createRef();
 		this.polyline = "";
 	}
 
 	async componentDidMount() {
-		const response = await fetch('/activity/stream/6010261290', {headers:{
+		const response = await fetch('/activity/stream/6014114077', {headers:{
 			"Accept": "application/json",
 			"Content-Type": "application/json"}});
 		const data = await response.json();
@@ -29,11 +29,23 @@ export default class Map extends React.Component {
 
 		function flip(coords) {
 			var flipped = [];
+			var sumLat = 0;
+			var sumLng = 0;
 			for (var i = 0; i < coords.length; i++) {
 				var coord = coords[i].slice();
 				flipped.push([coord[1], coord[0]]);
+				sumLat += coord[1];
+				sumLng += coord[0]
 			}
-			return flipped
+			var avLat = sumLat / coords.length;
+			var avLong = sumLng / coords.length;
+
+			var latlng = [avLat, avLong];
+
+			return {
+				flipped: flipped,
+				av: latlng
+			};
 		}
 
 		const coords = flip(decodedPoly);
@@ -42,7 +54,7 @@ export default class Map extends React.Component {
 		const map = new mapboxgl.Map({
 			container: this.mapContainer.current,
 			style: 'mapbox://styles/mapbox/outdoors-v11',
-			center: coords[0],
+			center: coords.av,
 			zoom: zoom
 		});
 		
@@ -54,7 +66,7 @@ export default class Map extends React.Component {
 					'properties': {},
 					'geometry': {
 						'type': 'LineString',
-						'coordinates': coords
+						'coordinates': coords.flipped
 					}
 				}
 			});
@@ -77,9 +89,7 @@ export default class Map extends React.Component {
 		
 	render() {
 		return (
-			<div>
-				<div ref={this.mapContainer} className="map-container" />
-			</div>
+			<div ref={this.mapContainer} className="map-container" />
 		);
 	}
 

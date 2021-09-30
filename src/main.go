@@ -48,13 +48,14 @@ func main() {
 
 	db := SqlConnect()
 
+	// Get activities
+	token := GetRefreshToken()
+	activity := GetActivity(token, 10)
+	PopulateActivites(db, activity, token)
+
 	// API Rotuer
 	HandleRequests(db)
 
-	// Get activities
-//	token := GetRefreshToken()
-//	activity := GetActivity(token, 10)
-//	PopulateActivites(db, activity, token)
 
 
 	//stats := GetStats(token)

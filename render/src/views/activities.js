@@ -2,6 +2,7 @@ import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import './activities.css';
 import moment from 'moment';
+import Map from './map';
 
 
 class Activities extends React.Component {
@@ -18,7 +19,7 @@ class Activities extends React.Component {
 	async componentDidMount() {
 		// Initial state
 		try {
-			const response = await fetch('/activity/stream/5963598195', {headers:{
+			const response = await fetch('/activity/stream/6014114077', {headers:{
 				"Accept": "application/json",
 				"Content-Type": "application/json"}});
 			const data = await response.json();
@@ -45,7 +46,8 @@ class Activities extends React.Component {
 	render() {
 		
 		if (this.state.data.length === 0) {
-			return (<div>
+			return (
+			<div>
 				<p> Loading chart... </p>
 			</div>);
 		}
@@ -90,7 +92,6 @@ class Activities extends React.Component {
 					feature: {
 						saveAsImage: {},
 						dataZoom: {},
-						restore: {}
 					}
 				},
 				dataZoom: [
@@ -185,13 +186,16 @@ class Activities extends React.Component {
 			};
 			return (
 				<div className="main-container">
-					<div className="chart">
-						<button className="btn btn-secondary" onClick={this.updateContent}>
-							Previous workout
-						</button>
-						<ReactECharts option={options} 
-							theme={'macarons'} 
-							style={{height: '100%', width: '100%'}}/>
+					<div className="chart-map">
+						<div className="chart">
+							<button className="btn btn-secondary" onClick={this.updateContent}>
+								Previous workout
+							</button>
+							<ReactECharts option={options} 
+								theme={'macarons'} 
+								style={{height: '100%', width: '100%'}}/>
+						</div>
+						<Map />
 					</div>
 					<table className="activity-table">
 						<thead>

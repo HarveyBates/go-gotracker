@@ -92,7 +92,6 @@ func GetActivity(accessToken string, nResults int) []Activity {
 type DistanceStream struct {
 	Distance struct {
 		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"high"`
 	} `json:"distance"`
@@ -176,7 +175,6 @@ func GetCadence(activity string, accessToken string) CadenceStream {
 type HeartrateStream struct {
 	Heartrate struct {
 		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"resolution"`
 	} `json:"heartrate"`
@@ -218,7 +216,6 @@ func GetHeartRate(activity string, accessToken string) HeartrateStream {
 type WattsStream struct {
 	Watts struct {
 		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
 		OriginalSize int `json:"original_size"`
 		Resolution string `json:"resolution"`
 	} `json:"watts"`
@@ -257,13 +254,95 @@ func GetWatts(activity string, accessToken string) WattsStream {
 }
 
 
+type AltitudeStream struct {
+	Altitude struct {
+		Data []float64 `json:"data"`
+		OriginalSize int `json:"original_size"`
+		Resolution string `json:"resolution"`
+	} `json:"altitude"`
+}
+func GetAltitude(activity string, accessToken string) AltitudeStream {
+
+	var alt AltitudeStream
+
+	var bearer = "Bearer " + accessToken
+	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=altitude&key_by_type=true"
+	request, err := http.NewRequest("GET", url, nil)
+	request.Header.Add("Authorization", bearer)
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(responseData, &alt)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer response.Body.Close()
+
+	return alt
+}
+
+
+type LatLngStream struct {
+	LatLng struct {
+		Data [][]float64 `json:"data"`
+		OriginalSize int `json:"original_size"`
+		Resolution string `json:"resolution"`
+	} `json:"latlng"`
+}
+func GetLatLng(activity string, accessToken string) LatLngStream {
+
+	var latlng LatLngStream 
+
+	var bearer = "Bearer " + accessToken
+	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=latlng&key_by_type=true"
+	request, err := http.NewRequest("GET", url, nil)
+	request.Header.Add("Authorization", bearer)
+
+	client := &http.Client{}
+	response, err := client.Do(request)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	responseData, err := ioutil.ReadAll(response.Body)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	err = json.Unmarshal(responseData, &latlng)
+	
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	defer response.Body.Close()
+
+	return latlng
+}
+
+
 func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 	/*
 	 * Populate new table (activities) with indexing values (i.e. name, id etc.) and 
 	 * JSONB responses from strava.
 	 */
 
-	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local text, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb)")	
+	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local text, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb, altitude_stream jsonb, latlng_stream jsonb)")	
 
 	if err != nil {
 		log.Fatal(err)
@@ -305,7 +384,15 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 			wattsStruct := GetWatts(strconv.FormatInt(activity.ID, 10), accessToken)
 			watts, err := json.Marshal(wattsStruct)
 
-			statement, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)")
+			// Get altitude 
+			altitudeStruct := GetAltitude(strconv.FormatInt(activity.ID, 10), accessToken)
+			altitude, err := json.Marshal(altitudeStruct)
+
+			// Get latlng 
+			latlngStruct := GetLatLng(strconv.FormatInt(activity.ID, 10), accessToken)
+			latlng, err := json.Marshal(latlngStruct)
+
+			statement, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream, altitude_stream, latlng_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
 
 			if err != nil {
 				log.Fatal(err)
@@ -320,7 +407,9 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 				distance, 
 				cadence, 
 				heartRate, 
-				watts)
+				watts,
+				altitude,
+				latlng)
 
 			if err != nil{
 				log.Fatal(err)

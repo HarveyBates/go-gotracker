@@ -44,13 +44,15 @@ type ActivityStream struct {
 	Cadence Stream `db:"cadence_stream"`
 	Watts Stream `db:"watts_stream"`
 	Distance Stream `db:"distance_stream"`
+	Altitude Stream `db:"altitude_stream"`
+	LatLng Stream `db:"latlng_stream"`
 }
 func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	query := fmt.Sprintf("SELECT name, attributes, heartrate_stream, cadence_stream, watts_stream, distance_stream FROM activities WHERE id='%s'", id)
+	query := fmt.Sprintf("SELECT name, attributes, heartrate_stream, cadence_stream, watts_stream, distance_stream, altitude_stream, latlng_stream FROM activities WHERE id='%s'", id)
 
 	rows, err := db.Query(query)
 
@@ -61,7 +63,8 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	s := ActivityStream{}
 
 	for rows.Next() {
-		err := rows.Scan(&s.Name, &s.Attributes, &s.HeartRate, &s.Cadence, &s.Watts, &s.Distance)
+		err := rows.Scan(&s.Name, &s.Attributes, &s.HeartRate, &s.Cadence, 
+			&s.Watts, &s.Distance, &s.Altitude, &s.LatLng)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -75,7 +78,7 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	json.NewEncoder(w).Encode(s)
 
-	fmt.Println("GET: Activity Stream")
+	fmt.Println("GET: Activity Stream - ", id)
 
 }
 
