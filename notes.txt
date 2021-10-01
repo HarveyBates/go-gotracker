@@ -1,0 +1,31 @@
+
+Training stress score:
+TSS = ((ts * NP * IF)/(FTP*3600))*100
+
+Ramp Rate (rr):
+- 5 to 8 range is optimal
+
+Future wTSS (Weekly TSS):
+fTSS = CTSS + 6*rr
+
+
+Acute Training Load (Fatigue):
+- Previous ATL - ATLp
+- Time constant - TC = ~5-10 days
+ATL = ATLp + ((TSS - ATLp)/TC)
+
+Chronic Training Load (Fitness):
+- Previous CTL - CTLp
+- TC = ~42 days
+CTL = CTLp + ((TSS - CTLp)/TC)
+
+Training Stress Balance (Form):
+TSB = CTL - ATL
+
+
+0.60 – 0.69 is a recovery ride.
+0.70 – 0.79 is an endurance workout.
+0.80 – 0.89 is Sweet Spot ride, long road race.
+0.90 – 1.04 is a road race, time trial.
+1.05 – 1.15 is Criterium, short time trial.
+
