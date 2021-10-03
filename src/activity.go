@@ -3,7 +3,8 @@ package main
 import (
 	"fmt"
 	"strconv"
-	//"reflect"
+	"math"
+	"strings"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -37,11 +38,10 @@ type Activity struct {
 	AvHeartRate		float64 `json:"average_heartrate, omitempty"`
 	MaxHeartRate	float64	`json:"max_heartrate, omitempty"`
 	ElevationGain 	float64 `json:"total_elevation_gain"`
-	MaxElevation 	float64 `json:"elev_high"`
 	MinElevation 	float64 `json:"elev_low"`
+	MaxElevation 	float64 `json:"elev_high"`
 }
-
-func GetActivity(accessToken string, nResults int) []Activity {
+func GetActivities(accessToken string, nResults int) []Activity {
 	/* Gets an array of activities from Strava.
 	 *
 	 * @param accessToken Token from Strava to access API.
@@ -50,7 +50,7 @@ func GetActivity(accessToken string, nResults int) []Activity {
 	 * @return activity An array of activities.
 	 */
 
-	var activity []Activity
+	var activities []Activity
 
 	var bearer = "Bearer " + accessToken
 	url := fmt.Sprintf("https://www.strava.com/api/v3/athlete/activities/?per_page=%d", nResults) 
@@ -70,7 +70,7 @@ func GetActivity(accessToken string, nResults int) []Activity {
 		log.Fatal(err)
 	}
 
-	err = json.Unmarshal(responseData, &activity)
+	err = json.Unmarshal(responseData, &activities)
 	
 	if err != nil {
 		log.Fatal(err)
@@ -78,30 +78,42 @@ func GetActivity(accessToken string, nResults int) []Activity {
 
 	defer response.Body.Close()
 
-//	for _, items := range activity {
-//		value := reflect.ValueOf(items)
-//		for i := 0; i < value.NumField(); i++ {
-//			fmt.Println(value.Field(i))
-//		}
-//	}
-
-	return activity
+	return activities
 }
 
-
-type DistanceStream struct {
-	Distance struct {
-		Data []float64 `json:"data"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"high"`
-	} `json:"distance"`
+type Laps struct {
+	ID            int64  `json:"id"`
+	ResourceState int    `json:"resource_state"`
+	Name          string `json:"name"`
+	Activity      struct {
+		ID            int64 `json:"id"`
+		ResourceState int   `json:"resource_state"`
+	} `json:"activity"`
+	ElapsedTime        int       `json:"elapsed_time"`
+	MovingTime         int       `json:"moving_time"`
+	StartDate          string `json:"start_date"`
+	StartDateLocal     string `json:"start_date_local"`
+	Distance           float64   `json:"distance"`
+	StartIndex         int       `json:"start_index"`
+	EndIndex           int       `json:"end_index"`
+	TotalElevationGain float64   `json:"total_elevation_gain"`
+	AverageSpeed       float64   `json:"average_speed"`
+	MaxSpeed           float64   `json:"max_speed"`
+	AverageCadence     float64   `json:"average_cadence"`
+	DeviceWatts        bool      `json:"device_watts"`
+	AverageWatts       float64   `json:"average_watts"`
+	AverageHeartrate   float64   `json:"average_heartrate"`
+	MaxHeartrate       float64   `json:"max_heartrate"`
+	LapIndex           int       `json:"lap_index"`
+	Split              int       `json:"split"`
+	PaceZone           int       `json:"pace_zone"`
 }
-func GetDistance(activity string, accessToken string) DistanceStream {
+func GetLaps(accessToken string, activityId int64) []Laps {
 
-	var distance DistanceStream 
+	var laps []Laps
 
 	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=distance&key_by_type=true"
+	url := fmt.Sprintf("https://www.strava.com/api/v3/activities/%d/laps", activityId) 
 	request, err := http.NewRequest("GET", url, nil)
 	request.Header.Add("Authorization", bearer)
 
@@ -118,7 +130,7 @@ func GetDistance(activity string, accessToken string) DistanceStream {
 		log.Fatal(err)
 	}
 
-	err = json.Unmarshal(responseData, &distance)
+	err = json.Unmarshal(responseData, &laps)
 	
 	if err != nil {
 		log.Fatal(err)
@@ -126,213 +138,7 @@ func GetDistance(activity string, accessToken string) DistanceStream {
 
 	defer response.Body.Close()
 
-	return distance
-}
-
-
-type CadenceStream struct {
-	Cadence struct {
-		Data []float64 `json:"data"`
-		SeriesType string `json:"distance"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"resolution"`
-	} `json:"cadence"`
-}
-func GetCadence(activity string, accessToken string) CadenceStream {
-
-	var cadence CadenceStream 
-
-	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=cadence&key_by_type=true"
-	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", bearer)
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(responseData, &cadence)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer response.Body.Close()
-
-	return cadence
-}
-
-
-type HeartrateStream struct {
-	Heartrate struct {
-		Data []float64 `json:"data"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"resolution"`
-	} `json:"heartrate"`
-}
-func GetHeartRate(activity string, accessToken string) HeartrateStream {
-
-	var heartRate HeartrateStream
-
-	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=heartrate&key_by_type=true"
-	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", bearer)
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(responseData, &heartRate)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer response.Body.Close()
-
-	return heartRate 
-}
-
-
-type WattsStream struct {
-	Watts struct {
-		Data []float64 `json:"data"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"resolution"`
-	} `json:"watts"`
-}
-func GetWatts(activity string, accessToken string) WattsStream {
-
-	var watts WattsStream
-
-	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=watts&key_by_type=true"
-	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", bearer)
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(responseData, &watts)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer response.Body.Close()
-
-	return watts
-}
-
-
-type AltitudeStream struct {
-	Altitude struct {
-		Data []float64 `json:"data"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"resolution"`
-	} `json:"altitude"`
-}
-func GetAltitude(activity string, accessToken string) AltitudeStream {
-
-	var alt AltitudeStream
-
-	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=altitude&key_by_type=true"
-	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", bearer)
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(responseData, &alt)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer response.Body.Close()
-
-	return alt
-}
-
-
-type LatLngStream struct {
-	LatLng struct {
-		Data [][]float64 `json:"data"`
-		OriginalSize int `json:"original_size"`
-		Resolution string `json:"resolution"`
-	} `json:"latlng"`
-}
-func GetLatLng(activity string, accessToken string) LatLngStream {
-
-	var latlng LatLngStream 
-
-	var bearer = "Bearer " + accessToken
-	url := "https://www.strava.com/api/v3/activities/" + activity + "/streams?keys=latlng&key_by_type=true"
-	request, err := http.NewRequest("GET", url, nil)
-	request.Header.Add("Authorization", bearer)
-
-	client := &http.Client{}
-	response, err := client.Do(request)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	responseData, err := ioutil.ReadAll(response.Body)
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	err = json.Unmarshal(responseData, &latlng)
-	
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	defer response.Body.Close()
-
-	return latlng
+	return laps
 }
 
 
@@ -342,16 +148,17 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 	 * JSONB responses from strava.
 	 */
 
-	createRide, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, type text, id bigint, start_date_local text, attributes jsonb, distance_stream jsonb, cadence_stream jsonb, heartrate_stream jsonb, watts_stream jsonb, altitude_stream jsonb, latlng_stream jsonb)")	
+	createActivities, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, date timestamp, date_local timestamp, type text, id bigint, elapsed_time bigint, moving_time bigint, distance double precision, has_heart_rate boolean, summary jsonb, laps jsonb, AE integer, rAE integer, sAE integer, hrAE integer, AV double precision, AI double precision, AEF double precision)")	
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	defer createRide.Close()
+	defer createActivities.Close()
 
 	for _, activity := range activities {
 
+		// Check if activity already exists
 		var exists bool
 		query := fmt.Sprintf("SELECT EXISTS(SELECT id FROM activities WHERE id = %s)", strconv.FormatInt(activity.ID, 10))
 
@@ -363,36 +170,85 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 
 		if(!exists) {
 			
-			fmt.Println("Adding activity:\t", activity.Name, activity.ID)
+			fmt.Println("Adding activity:\t", activity.Name, "\t", activity.ID)
+
+			// Get the most recent athlete stats and config
+			var bFTP, rFTP, bThHr, rThHr, sThHr int
+			query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
+			err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr)
+
+			if err != nil {
+				log.Fatal(err)
+			}	
+
+			// Get Stream
+			if(strings.Contains(activity.Type, "Run")) {
+				streams := GetStreams(activity.ID, accessToken)
+				EstimateWatts(db, streams)
+			}
+
+			// Activity Exertion
+			var AE int 
+			// Run Activity Exertion
+			var rAE int 
+			// Swim Activity Exertion
+			var sAE int 
+			// Heartrate Activity Exertion
+			var hrAE int 
+			// Activity Variability
+			var AV float64 
+			// Activity Intensity 
+			var AI float64 
+			// Activity Economy Factor 
+			var AEF float64 
+
+			if(strings.Contains(activity.Type, "Run")) {
+				if(activity.NormWatts != 0) {
+					AI = float64(activity.NormWatts) / float64(rFTP)
+					AE = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
+								float64(AI)) / (float64(rFTP) * float64(3600))) * float64(100)) 
+					AV = float64(activity.NormWatts) / float64(activity.AvWatts)
+				}
+				if(activity.HasHeartRate) {
+					AI = float64(activity.AvHeartRate) / float64(rThHr)
+					hrAE = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(AI)) / (float64(rThHr) * float64(3600))) * float64(100))
+				}
+				if(activity.HasHeartRate && activity.NormWatts != 0) {
+					AEF = float64(activity.NormWatts) / float64(activity.AvHeartRate)
+				}
+			}
+			if(strings.Contains(activity.Type, "Ride")) {
+				if(activity.NormWatts != 0) {
+					AI = float64(activity.NormWatts) / float64(bFTP)
+					AE = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
+								float64(AI)) / (float64(bFTP) * float64(3600))) * float64(100)) 
+					AV = float64(activity.NormWatts) / float64(activity.AvWatts)
+				}
+				if(activity.HasHeartRate) {
+					AI = float64(activity.AvHeartRate) / float64(bThHr)
+					hrAE = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(AI)) / (float64(bThHr) * float64(3600))) * float64(100))
+				}
+				if(activity.HasHeartRate && activity.NormWatts != 0) {
+					AEF = float64(activity.NormWatts) / float64(activity.AvHeartRate)
+				}
+			}
+			// TODO add swim TSS
 
 			// Convert to json objects
 			activityStruct, err := json.Marshal(activity)
 
-			// Get distance
-			distanceStruct := GetDistance(strconv.FormatInt(activity.ID, 10), accessToken)
-			distance, err := json.Marshal(distanceStruct)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-			// Get Cadence
-			cadenceStruct := GetCadence(strconv.FormatInt(activity.ID, 10), accessToken)
-			cadence, err := json.Marshal(cadenceStruct)
+			laps := GetLaps(accessToken, activity.ID)
+			lapsStruct, err := json.Marshal(laps)
 
-			// Get heart rate
-			hrStruct := GetHeartRate(strconv.FormatInt(activity.ID, 10), accessToken)
-			heartRate, err := json.Marshal(hrStruct)
+			if err != nil {
+				log.Fatal(err)
+			}
 
-			// Get watts
-			wattsStruct := GetWatts(strconv.FormatInt(activity.ID, 10), accessToken)
-			watts, err := json.Marshal(wattsStruct)
-
-			// Get altitude 
-			altitudeStruct := GetAltitude(strconv.FormatInt(activity.ID, 10), accessToken)
-			altitude, err := json.Marshal(altitudeStruct)
-
-			// Get latlng 
-			latlngStruct := GetLatLng(strconv.FormatInt(activity.ID, 10), accessToken)
-			latlng, err := json.Marshal(latlngStruct)
-
-			statement, err := db.Prepare("INSERT INTO activities(name, type, id, start_date_local, attributes, distance_stream, cadence_stream, heartrate_stream, watts_stream, altitude_stream, latlng_stream) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)")
+			statement, err := db.Prepare("INSERT INTO activities (name, date, date_local, type, id, elapsed_time, moving_time, distance, has_heart_rate, summary, laps, AE, rAE, sAE, hrAE, AV, AI, AEF) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)")
 
 			if err != nil {
 				log.Fatal(err)
@@ -400,22 +256,127 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 
 			_, err = statement.Exec(
 				activity.Name, 
+				activity.StartDate, 
+				activity.StartDateLocal, 
 				activity.Type,
 				activity.ID, 
-				activity.StartDateLocal,
+				activity.ElapsedTime,
+				activity.MovingTime,
+				activity.Distance,
+				activity.HasHeartRate,
 				activityStruct,
-				distance, 
-				cadence, 
-				heartRate, 
-				watts,
-				altitude,
-				latlng)
+				lapsStruct,
+				AE, 
+				rAE, 
+				sAE,
+				hrAE, 
+				math.Round(AV*1000)/1000,
+				math.Round(AI*1000)/1000,
+				math.Round(AEF*1000)/1000)
 
 			if err != nil{
 				log.Fatal(err)
 			}
+
+
 		} else {
 			fmt.Println(activity.Name, "\talready exists... skipping")	
 		}
 	}
 }
+
+
+func EstimateWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
+	// Caluculted from https://github.com/SauceLLC/sauce4strava
+
+	interval := streams.Time.Data
+	GAD := streams.GradeAdjustedDistance.Data
+
+	var weight float64
+	query := fmt.Sprintf("SELECT weight FROM athlete ORDER BY date DESC LIMIT 1")
+	err := db.QueryRow(query).Scan(&weight)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var estimatedWatts []int64
+	var rollingAvWatts []float64
+	var sumWatts, rollingSum int64
+	for i := 1; i < len(GAD); i++ {
+		distance := GAD[i] - GAD[i - 1]
+		step := interval[i] - interval[i - 1]
+		j := 4.35 / ((1 / float64(weight) * (1 / float64(distance))))
+		kj := j * 0.00024
+		eWatts := int64(float64(kj) * 1000 / float64(step))
+		sumWatts += eWatts
+		estimatedWatts = append(estimatedWatts, eWatts)
+		rollingSum += eWatts
+		if i % 30 == 0 {
+			av := math.Pow(float64((rollingSum) / 30), 4)
+			rollingAvWatts = append(rollingAvWatts, float64(av))
+			rollingSum = 0
+		}
+	}
+
+	var avWatts int
+	if(sumWatts != 0 && len(estimatedWatts) != 0) {
+		avWatts = int(sumWatts / int64(len(estimatedWatts)))
+		fmt.Println("AvWatts: ", avWatts)
+	} else {
+		fmt.Println("Zero Division Error")
+	}
+
+	var normSum float64
+	for i := 0; i < len(rollingAvWatts); i++ {
+		normSum += rollingAvWatts[i]
+	}
+
+	var normWatts int
+	if(normSum != 0 && len(rollingAvWatts) != 0) {
+		normWatts = int(math.Sqrt(math.Sqrt(float64(normSum / float64(len(rollingAvWatts))))))
+		fmt.Println("NormWatts: ", normWatts)
+	} else {
+		fmt.Println("Zero Division Error")
+	}
+
+	return estimatedWatts, avWatts, normWatts
+}
+
+//TODO calcuate AE for running using normalised watts
+// Create functions for calculating each of the parameters
+
+
+//func AddititionalParameters(db *sql.DB) {
+//	
+////	ftp := 261
+////
+////	varIndex := activity.NormWatts / activity.AvWatts
+////	intensityFactor := activity.NormWatts / FTP
+////	tss := ((activity.ElapsedTime * activity.NormWatts * intensityFactor) / (ftp * 3600)) * 100 
+//
+//	tss := 42
+//
+//	var date string;
+//	var ftp, atlp, ctlp, tsbp int;
+//	err := db.QueryRow("SELECT date, ftp, atl, ctl, tsb FROM training ORDER BY date DESC").Scan(&date, &ftp, &atlp, &ctlp, &tsbp)
+//
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	atl := atlp + ((tss - atlp) / 10)
+//	ctl := ctlp + ((tss - ctlp) / 42)
+//	tsb := ctl - atl
+//
+//	query := fmt.Sprintf("INSERT INTO training(date, ftp, atl, ctl, tsb) VALUES (NOW(), %d, %d, %d, %d)", ftp, atl, ctl, tsb)	
+//
+//	q, err := db.Query(query)	
+//
+//	if err != nil {
+//		log.Fatal(err)
+//	}
+//
+//	defer q.Close()
+//}
+

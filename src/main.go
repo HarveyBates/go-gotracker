@@ -48,12 +48,13 @@ func main() {
 
 	db := SqlConnect()
 
-	Training(db)
+//	CreateAthlete(db)
 
 	// Get activities
-//	token := GetRefreshToken()
-//	activity := GetActivity(token, 20)
-//	PopulateActivites(db, activity, token)
+	token := GetRefreshToken()
+	fmt.Println(token)
+	activity := GetActivities(token, 10)
+	PopulateActivites(db, activity, token)
 
 	// API Rotuer
 //	HandleRequests(db)
