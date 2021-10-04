@@ -247,6 +247,7 @@ type ActivityStats struct {
 	Intensity float64
 	HRIntensity float64
 	RunIntensity float64
+	SwimIntensity float64
 
 	Efficiency float64
 	EstimatedEfficiency float64
@@ -256,9 +257,9 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 	var stats ActivityStats
 
 	// Get the most recent athlete stats and config
-	var bFTP, rFTP, bThHr, rThHr, sThHr, restingHr, reserveHr int
-	query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate, resting_heartrate, reserve_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
-	err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr, &restingHr, &reserveHr)
+	var bFTP, rFTP, bThHr, rThHr, sThHr, restingHr, reserveHr, sThP int
+	query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate, resting_heartrate, reserve_heartrate, swim_threshold_pace FROM athlete ORDER BY date DESC LIMIT 1")
+	err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr, &restingHr, &reserveHr, &sThP)
 
 	if err != nil {
 		log.Fatal(err)
@@ -279,14 +280,15 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 						float64(stats.RunIntensity)) / (float64(rFTP) * float64(3600))) * float64(100)) 
 			stats.RunVariability = float64(normWattsRun) / float64(avWattsRun)
 		}
-		// TODO look into this more...
-		// Using difference between av hr and resting hr
 		if(activity.HasHeartRate) {
 			stats.HRIntensity = float64(activity.AvHeartRate) / float64(rThHr)
 			hrr := (activity.AvHeartRate - float64(restingHr)) / float64(reserveHr)
-			trimp := ((float64(activity.MovingTime) / 60) / 60) * hrr * 0.64 * math.Pow(math.E, (1.92 * hrr))
-			ltTrimp := 60 * ((143 - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((143 - float64(restingHr)) / float64(reserveHr))))
+			// Activity TRIMP
+			trimp := ((float64(activity.MovingTime) / 60)) * hrr * 0.64 * math.Pow(math.E, (1.92 * hrr))
+			// ltTrimp - TRIMP at latate threshold for 1 hour
+			ltTrimp := 60 * ((float64(rThHr) - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((float64(rThHr) - float64(restingHr)) / float64(reserveHr))))
 			stats.HRExertion = int((float64(trimp) / float64(ltTrimp)) * 100)
+			fmt.Println("Run HRExertion: ", stats.HRExertion)
 		}
 		if(activity.HasHeartRate && activity.NormWatts != 0) {
 			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)
@@ -311,6 +313,24 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 		}
 		if(activity.HasHeartRate && activity.NormWatts != 0) {
 			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)
+		}
+	}
+
+	if(strings.Contains(activity.Type, "Swim")) {
+		// Convert to meters per minute
+		dt := activity.Distance / (float64(activity.MovingTime) / 60)
+		fmt.Println(activity.Distance, activity.MovingTime)
+		// Express as a percentage of threshold pace to calculate intensity
+		stats.SwimIntensity = float64(dt / ((100 / float64(sThP)) * 60))
+		// SE = intensity^3 x movingTime (hours) x 100
+		stats.SwimExertion = int(math.Pow(stats.SwimIntensity, 3) * ((float64(activity.MovingTime) / 60) / 60) * 100)
+		// If using heartrate monitor 
+		if(activity.HasHeartRate) {
+			stats.HRIntensity = float64(activity.AvHeartRate) / float64(bThHr)
+			hrr := (activity.AvHeartRate - float64(restingHr)) / float64(reserveHr)
+			trimp := (float64(activity.MovingTime) / 60) * hrr * 0.64 * (math.Pow(math.E, (1.92 * hrr)))
+			ltTrimp := 60 * ((143 - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((143 - float64(restingHr)) / float64(reserveHr))))
+			stats.HRExertion = int((float64(trimp) / float64(ltTrimp)) * 100)
 		}
 	}
 
