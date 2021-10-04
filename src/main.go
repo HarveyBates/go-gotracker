@@ -48,11 +48,10 @@ func main() {
 
 	db := SqlConnect()
 
-//	CreateAthlete(db)
+	CreateAthlete(db)
 
 	// Get activities
 	token := GetRefreshToken()
-	fmt.Println(token)
 	activity := GetActivities(token, 10)
 	PopulateActivites(db, activity, token)
 

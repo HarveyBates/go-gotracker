@@ -256,9 +256,9 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 	var stats ActivityStats
 
 	// Get the most recent athlete stats and config
-	var bFTP, rFTP, bThHr, rThHr, sThHr int
-	query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
-	err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr)
+	var bFTP, rFTP, bThHr, rThHr, sThHr, restingHr, reserveHr int
+	query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate, resting_heartrate, reserve_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
+	err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr, &restingHr, &reserveHr)
 
 	if err != nil {
 		log.Fatal(err)
@@ -283,7 +283,10 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 		// Using difference between av hr and resting hr
 		if(activity.HasHeartRate) {
 			stats.HRIntensity = float64(activity.AvHeartRate) / float64(rThHr)
-			stats.HRExertion = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(stats.HRIntensity)) / (float64(rThHr) * float64(3600))) * float64(100))
+			hrr := (activity.AvHeartRate - float64(restingHr)) / float64(reserveHr)
+			trimp := ((float64(activity.MovingTime) / 60) / 60) * hrr * 0.64 * math.Pow(math.E, (1.92 * hrr))
+			ltTrimp := 60 * ((143 - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((143 - float64(restingHr)) / float64(reserveHr))))
+			stats.HRExertion = int((float64(trimp) / float64(ltTrimp)) * 100)
 		}
 		if(activity.HasHeartRate && activity.NormWatts != 0) {
 			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)
@@ -301,7 +304,10 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 		}
 		if(activity.HasHeartRate) {
 			stats.HRIntensity = float64(activity.AvHeartRate) / float64(bThHr)
-			stats.HRExertion = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(stats.HRIntensity)) / (float64(bThHr) * float64(3600))) * float64(100))
+			hrr := (activity.AvHeartRate - float64(restingHr)) / float64(reserveHr)
+			trimp := (float64(activity.MovingTime) / 60) * hrr * 0.64 * (math.Pow(math.E, (1.92 * hrr)))
+			ltTrimp := 60 * ((143 - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((143 - float64(restingHr)) / float64(reserveHr))))
+			stats.HRExertion = int((float64(trimp) / float64(ltTrimp)) * 100)
 		}
 		if(activity.HasHeartRate && activity.NormWatts != 0) {
 			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)

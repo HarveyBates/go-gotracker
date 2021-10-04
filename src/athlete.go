@@ -1,7 +1,7 @@
 package main
 
 import (
-	"fmt"
+//	"fmt"
 	"time"
 	"encoding/json"
 	"log"
@@ -12,7 +12,7 @@ import (
 
 func CreateAthlete(db *sql.DB) {
 
-	createAthlete, err := db.Query("CREATE TABLE IF NOT EXISTS athlete (date timestamp, date_local timestamp, weight real, ramp_rate integer, bike_FTP integer, bike_power_zones jsonb, bike_heartrate_zones jsonb, bike_threshold_heartrate integer, run_FTP integer, run_power_zones jsonb, run_heartrate_zones jsonb, run_threshold_heartrate integer, run_threshold_pace integer, swim_threshold_pace integer, swim_threshold_heartrate integer)")
+	createAthlete, err := db.Query("CREATE TABLE IF NOT EXISTS athlete (date timestamp, date_local timestamp, weight real, ramp_rate integer, resting_heartrate integer, max_heartrate integer, reserve_heartrate real, bike_FTP integer, bike_power_zones jsonb, bike_heartrate_zones jsonb, bike_threshold_heartrate integer, run_FTP integer, run_power_zones jsonb, run_heartrate_zones jsonb, run_threshold_heartrate integer, run_threshold_pace integer, swim_threshold_pace integer, swim_threshold_heartrate integer)")
 
 	if err != nil {
 		log.Fatal(err)
@@ -21,11 +21,15 @@ func CreateAthlete(db *sql.DB) {
 	defer createAthlete.Close()
 
 
-	insertDefaults, err := db.Prepare("INSERT INTO athlete (date, date_local, weight, ramp_rate, bike_FTP, bike_power_zones, bike_heartrate_zones, bike_threshold_heartrate, run_FTP, run_power_zones, run_heartrate_zones, run_threshold_heartrate, run_threshold_pace, swim_threshold_pace, swim_threshold_heartrate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)")
+	insertDefaults, err := db.Prepare("INSERT INTO athlete (date, date_local, weight, ramp_rate, resting_heartrate, max_heartrate, reserve_heartrate, bike_FTP, bike_power_zones, bike_heartrate_zones, bike_threshold_heartrate, run_FTP, run_power_zones, run_heartrate_zones, run_threshold_heartrate, run_threshold_pace, swim_threshold_pace, swim_threshold_heartrate) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)")
 
 	if err != nil {
 		log.Fatal(err)
 	}
+
+	restingHr := 44
+	maxHr := 161
+	reserveHr := maxHr - restingHr
 
 	weight := 65.5
 	rampRate := 5
@@ -73,13 +77,15 @@ func CreateAthlete(db *sql.DB) {
 	}
 
 	localTime := time.Now().In(timeZone)
-	fmt.Println(localTime)
 
 	_, err = insertDefaults.Exec(
 		time.Now(),
 		localTime,
 		weight,
 		rampRate,
+		restingHr,
+		maxHr,
+		reserveHr,
 		bikeftp,
 		bikePowerJSON,
 		bikeHrJSON,
