@@ -148,7 +148,7 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 	 * JSONB responses from strava.
 	 */
 
-	createActivities, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, date timestamp, date_local timestamp, type text, id bigint, elapsed_time bigint, moving_time bigint, distance double precision, has_heart_rate boolean, summary jsonb, laps jsonb, AE integer, rAE integer, sAE integer, hrAE integer, AV double precision, AI double precision, AEF double precision)")	
+	createActivities, err := db.Query("CREATE TABLE IF NOT EXISTS activities (name text, date timestamp, date_local timestamp, type text, id bigint, elapsed_time bigint, moving_time bigint, distance real, has_heart_rate boolean, summary jsonb, laps jsonb, stats jsonb)")	
 
 	if err != nil {
 		log.Fatal(err)
@@ -172,83 +172,38 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 			
 			fmt.Println("Adding activity:\t", activity.Name, "\t", activity.ID)
 
-			// Get the most recent athlete stats and config
-			var bFTP, rFTP, bThHr, rThHr, sThHr int
-			query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
-			err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr)
-
-			if err != nil {
-				log.Fatal(err)
-			}	
-
-			// Get Stream
-			if(strings.Contains(activity.Type, "Run")) {
-				streams := GetStreams(activity.ID, accessToken)
-				EstimateWatts(db, streams)
-			}
-
-			// Activity Exertion
-			var AE int 
-			// Run Activity Exertion
-			var rAE int 
-			// Swim Activity Exertion
-			var sAE int 
-			// Heartrate Activity Exertion
-			var hrAE int 
-			// Activity Variability
-			var AV float64 
-			// Activity Intensity 
-			var AI float64 
-			// Activity Economy Factor 
-			var AEF float64 
-
-			if(strings.Contains(activity.Type, "Run")) {
-				if(activity.NormWatts != 0) {
-					AI = float64(activity.NormWatts) / float64(rFTP)
-					AE = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
-								float64(AI)) / (float64(rFTP) * float64(3600))) * float64(100)) 
-					AV = float64(activity.NormWatts) / float64(activity.AvWatts)
-				}
-				if(activity.HasHeartRate) {
-					AI = float64(activity.AvHeartRate) / float64(rThHr)
-					hrAE = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(AI)) / (float64(rThHr) * float64(3600))) * float64(100))
-				}
-				if(activity.HasHeartRate && activity.NormWatts != 0) {
-					AEF = float64(activity.NormWatts) / float64(activity.AvHeartRate)
-				}
-			}
-			if(strings.Contains(activity.Type, "Ride")) {
-				if(activity.NormWatts != 0) {
-					AI = float64(activity.NormWatts) / float64(bFTP)
-					AE = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
-								float64(AI)) / (float64(bFTP) * float64(3600))) * float64(100)) 
-					AV = float64(activity.NormWatts) / float64(activity.AvWatts)
-				}
-				if(activity.HasHeartRate) {
-					AI = float64(activity.AvHeartRate) / float64(bThHr)
-					hrAE = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(AI)) / (float64(bThHr) * float64(3600))) * float64(100))
-				}
-				if(activity.HasHeartRate && activity.NormWatts != 0) {
-					AEF = float64(activity.NormWatts) / float64(activity.AvHeartRate)
-				}
-			}
-			// TODO add swim TSS
-
 			// Convert to json objects
-			activityStruct, err := json.Marshal(activity)
+			activityJSON, err := json.Marshal(activity)
 
 			if err != nil {
 				log.Fatal(err)
 			}
 
 			laps := GetLaps(accessToken, activity.ID)
-			lapsStruct, err := json.Marshal(laps)
+			lapsJSON, err := json.Marshal(laps)
 
 			if err != nil {
 				log.Fatal(err)
 			}
 
-			statement, err := db.Prepare("INSERT INTO activities (name, date, date_local, type, id, elapsed_time, moving_time, distance, has_heart_rate, summary, laps, AE, rAE, sAE, hrAE, AV, AI, AEF) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18)")
+			// Get Stream
+			streams := GetStreams(activity.ID, accessToken)
+
+			// Esitmate watts if the activity is a run 
+			var normWattsRun, avWattsRun int
+			//var normWattsRunArr []int64
+			if(strings.Contains(activity.Type, "Run")) {
+				_, normWattsRun, avWattsRun = EstimateRunWatts(db, streams)
+			}
+
+			stats := CalcActivityStats(db, activity, normWattsRun, avWattsRun)
+			statsJSON, err := json.Marshal(stats)
+
+			if err != nil {
+				log.Fatal(err)
+			}
+
+			statement, err := db.Prepare("INSERT INTO activities (name, date, date_local, type, id, elapsed_time, moving_time, distance, has_heart_rate, summary, laps, stats) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)")
 
 			if err != nil {
 				log.Fatal(err)
@@ -264,15 +219,9 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 				activity.MovingTime,
 				activity.Distance,
 				activity.HasHeartRate,
-				activityStruct,
-				lapsStruct,
-				AE, 
-				rAE, 
-				sAE,
-				hrAE, 
-				math.Round(AV*1000)/1000,
-				math.Round(AI*1000)/1000,
-				math.Round(AEF*1000)/1000)
+				activityJSON,
+				lapsJSON,
+				statsJSON)
 
 			if err != nil{
 				log.Fatal(err)
@@ -286,7 +235,84 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 }
 
 
-func EstimateWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
+type ActivityStats struct {
+	Exertion int
+	RunExertion int
+	SwimExertion int
+	HRExertion int
+
+	Variability float64
+	RunVariability float64
+
+	Intensity float64
+	HRIntensity float64
+	RunIntensity float64
+
+	Efficiency float64
+	EstimatedEfficiency float64
+}
+func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsRun int) ActivityStats {
+
+	var stats ActivityStats
+
+	// Get the most recent athlete stats and config
+	var bFTP, rFTP, bThHr, rThHr, sThHr int
+	query := fmt.Sprintf("SELECT bike_ftp, run_ftp, bike_threshold_heartrate, run_threshold_heartrate, swim_threshold_heartrate FROM athlete ORDER BY date DESC LIMIT 1")
+	err := db.QueryRow(query).Scan(&bFTP, &rFTP, &bThHr, &rThHr, &sThHr)
+
+	if err != nil {
+		log.Fatal(err)
+	}	
+
+	if(strings.Contains(activity.Type, "Run")) {
+		// Use real watts to calculate Exertion
+		if(activity.NormWatts != 0) {
+			stats.Intensity = float64(activity.NormWatts) / float64(rFTP)
+			stats.Exertion = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
+						float64(stats.Intensity)) / (float64(rFTP) * float64(3600))) * float64(100)) 
+			stats.Variability = float64(activity.NormWatts) / float64(activity.AvWatts)
+		}
+		// Use estimated watts to calculate RunExertion if real watts are not avalibale 
+		if(normWattsRun != 0 && avWattsRun != 0) {
+			stats.RunIntensity = float64(normWattsRun) / float64(rFTP)
+			stats.RunExertion = int(((float64(activity.MovingTime) * float64(normWattsRun) * 
+						float64(stats.RunIntensity)) / (float64(rFTP) * float64(3600))) * float64(100)) 
+			stats.RunVariability = float64(normWattsRun) / float64(avWattsRun)
+		}
+		// TODO look into this more...
+		// Using difference between av hr and resting hr
+		if(activity.HasHeartRate) {
+			stats.HRIntensity = float64(activity.AvHeartRate) / float64(rThHr)
+			stats.HRExertion = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(stats.HRIntensity)) / (float64(rThHr) * float64(3600))) * float64(100))
+		}
+		if(activity.HasHeartRate && activity.NormWatts != 0) {
+			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)
+		} else if(activity.HasHeartRate && normWattsRun != 0) {
+			stats.EstimatedEfficiency = float64(normWattsRun) / float64(activity.AvHeartRate)
+		}
+	}
+
+	if(strings.Contains(activity.Type, "Ride")) {
+		if(activity.NormWatts != 0) {
+			stats.Intensity = float64(activity.NormWatts) / float64(bFTP)
+			stats.Exertion = int(((float64(activity.MovingTime) * float64(activity.NormWatts) * 
+						float64(stats.Intensity)) / (float64(bFTP) * float64(3600))) * float64(100)) 
+			stats.Variability = float64(activity.NormWatts) / float64(activity.AvWatts)
+		}
+		if(activity.HasHeartRate) {
+			stats.HRIntensity = float64(activity.AvHeartRate) / float64(bThHr)
+			stats.HRExertion = int(((float64(activity.MovingTime) * (float64(activity.AvHeartRate) - float64(44)) * float64(stats.HRIntensity)) / (float64(bThHr) * float64(3600))) * float64(100))
+		}
+		if(activity.HasHeartRate && activity.NormWatts != 0) {
+			stats.Efficiency = float64(activity.NormWatts) / float64(activity.AvHeartRate)
+		}
+	}
+
+	return stats
+}
+
+
+func EstimateRunWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
 	// Caluculted from https://github.com/SauceLLC/sauce4strava
 
 	interval := streams.Time.Data
@@ -342,9 +368,6 @@ func EstimateWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
 
 	return estimatedWatts, avWatts, normWatts
 }
-
-//TODO calcuate AE for running using normalised watts
-// Create functions for calculating each of the parameters
 
 
 //func AddititionalParameters(db *sql.DB) {
