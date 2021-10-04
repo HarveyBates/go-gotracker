@@ -187,7 +187,7 @@ func PopulateActivites(db *sql.DB, activities []Activity, accessToken string){
 			}
 
 			// Get Stream
-			streams := GetStreams(activity.ID, accessToken)
+			streams := GetStreams(db, activity, accessToken)
 
 			// Esitmate watts if the activity is a run 
 			var normWattsRun, avWattsRun int
@@ -319,14 +319,13 @@ func CalcActivityStats(db *sql.DB, activity Activity, normWattsRun int, avWattsR
 	if(strings.Contains(activity.Type, "Swim")) {
 		// Convert to meters per minute
 		dt := activity.Distance / (float64(activity.MovingTime) / 60)
-		fmt.Println(activity.Distance, activity.MovingTime)
 		// Express as a percentage of threshold pace to calculate intensity
 		stats.SwimIntensity = float64(dt / ((100 / float64(sThP)) * 60))
 		// SE = intensity^3 x movingTime (hours) x 100
 		stats.SwimExertion = int(math.Pow(stats.SwimIntensity, 3) * ((float64(activity.MovingTime) / 60) / 60) * 100)
 		// If using heartrate monitor 
 		if(activity.HasHeartRate) {
-			stats.HRIntensity = float64(activity.AvHeartRate) / float64(bThHr)
+			stats.HRIntensity = float64(activity.AvHeartRate) / float64(sThHr)
 			hrr := (activity.AvHeartRate - float64(restingHr)) / float64(reserveHr)
 			trimp := (float64(activity.MovingTime) / 60) * hrr * 0.64 * (math.Pow(math.E, (1.92 * hrr)))
 			ltTrimp := 60 * ((143 - float64(restingHr)) / float64(reserveHr)) * 0.64 * math.Pow(math.E, (1.92 * ((143 - float64(restingHr)) / float64(reserveHr))))
@@ -374,7 +373,6 @@ func EstimateRunWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
 	var avWatts int
 	if(sumWatts != 0 && len(estimatedWatts) != 0) {
 		avWatts = int(sumWatts / int64(len(estimatedWatts)))
-		fmt.Println("AvWatts: ", avWatts)
 	} else {
 		fmt.Println("Zero Division Error")
 	}
@@ -387,7 +385,6 @@ func EstimateRunWatts(db *sql.DB, streams Streams) ([]int64, int, int) {
 	var normWatts int
 	if(normSum != 0 && len(rollingAvWatts) != 0) {
 		normWatts = int(math.Sqrt(math.Sqrt(float64(normSum / float64(len(rollingAvWatts))))))
-		fmt.Println("NormWatts: ", normWatts)
 	} else {
 		fmt.Println("Zero Division Error")
 	}

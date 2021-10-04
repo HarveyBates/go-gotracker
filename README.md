@@ -1,26 +1,9 @@
+<a href="https://github.com/HarveyBates/go-gotracker"><img src="/imgs/logo.png" alt="go-gotracker-logo" height="100" hspace="20" vspace="50"></a>
 
-![activity plot](imgs/prelim-plot.png)
+Go-gotracker provides a self-hosted resource for analysing workouts and athletic performance over time. There are three main aims:
+1. Eliminate the possibility of losing workout data - hence self-hosting 
+2. Make it easier to stay on track with your training - through custom graphs and analytics
+3. Provide some level of direction in what future workouts should entail
 
-Useful commands
+The current version relies heavily on [Strava](www.strava.com) (thanks to their awesome API) for pulling in an athletes data. From here a number of metrics are generated, which are based on numerous resources linked below.
 
-
-```bash
-docker-compose up -d # Run docker
-docker-compose down # Stop docker
-docker ps # Get docker list
-docker logs go-gotracker_sqldb_1 # Get logs
-watch docker logs go-gotracker_sqldb_1 # Watch logs
-
-# Mysql
-docker exec -it <container_id> mysql -u root -p # SQL interface
-
-# Postgres
-docker exec -it go-gotracker_sqldb_1 sh # Open shell
-createdb -U postgres go-gotracker # Create database
-\l # List databases
-\c <database> # Change to db
-\dt # List tables
-```
-```SQL
-SELECT name, id, start_date_local FROM ride_activities WHERE attributes->>'type' = 'Run';
-```
