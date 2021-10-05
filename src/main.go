@@ -56,7 +56,7 @@ func main() {
 	PopulateActivites(db, activity, token)
 
 	// API Rotuer
-//	HandleRequests(db)
+	HandleRequests(db)
 
 
 
