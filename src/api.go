@@ -11,8 +11,8 @@ import (
 	"github.com/gorilla/mux"
 )
 
-type Stream map[string]interface{}
-func (s *Stream) Scan(src interface{}) error {
+type JSON map[string]interface{}
+func (s *JSON) Scan(src interface{}) error {
 	source, ok := src.([]byte)
 
 	if !ok {
@@ -22,8 +22,6 @@ func (s *Stream) Scan(src interface{}) error {
 	var i interface{}
 
 	err := json.Unmarshal(source, &i)
-
-	fmt.Println(i)
 
 	if err != nil {
 		return err
@@ -35,6 +33,28 @@ func (s *Stream) Scan(src interface{}) error {
 		return errors.New("Assert type: .(map[string]interface{})")
 	}
 
+	return nil
+}
+
+
+type LapsArr []Laps 
+func (l *LapsArr) Scan(src interface{}) error {
+	// The JSON method doesn't work for json arrays 
+	source, ok := src.([]byte)
+
+	if !ok {
+		return errors.New("Assert type: .([]byte) failed")
+	}
+
+	var i []Laps
+
+	err := json.Unmarshal(source, &i)
+
+	if err != nil {
+		return err
+	}
+
+	*l = i
 
 	return nil
 }
@@ -50,15 +70,16 @@ type ActivityResponse struct {
 	MovingTime int64 `db:"moving_time"`
 	Distance float64 `db:"distance"`
 	HasHeartRate bool `db:"has_heart_rate"`
-	Summary Stream `db:"summary"`
-	Laps Stream `db:"laps"`
-	Stats Stream `db:"stats"`
+	Summary JSON `db:"summary"`
+	Laps LapsArr `db:"laps"`
+	Stats JSON `db:"stats"`
 }
 func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+	// Get the latest activity
 
 	a := new(ActivityResponse)
 
-	query := fmt.Sprintf("SELECT name, date, date_local, type, id, elapsed_time, moving_time, distance, has_heart_rate, summary, laps, stats FROM activities ORDER BY id DESC LIMIT 1")
+	query := fmt.Sprintf("SELECT * FROM activities ORDER BY id DESC LIMIT 1")
 
 	err := db.QueryRow(query).Scan(&a.Name, &a.StartDate, &a.StartDateLocal,
 							&a.Type, &a.ID, &a.ElapsedTime, &a.MovingTime,
@@ -71,26 +92,36 @@ func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	json.NewEncoder(w).Encode(a)
 
-	fmt.Println("[GET] Last activity - ", a.ID)
+	fmt.Println("[GET] Lastest activity - ", a.ID)
 }
 
 
-type ActivityStream struct {
+type Stream	 struct {
 	Name string `db:"name"`
-	Attributes Stream `db:"attributes"`	
-	HeartRate Stream `db:"heartrate_stream"`
-	Cadence Stream `db:"cadence_stream"`
-	Watts Stream `db:"watts_stream"`
-	Distance Stream `db:"distance_stream"`
-	Altitude Stream `db:"altitude_stream"`
-	LatLng Stream `db:"latlng_stream"`
+	Date string `db:"date"`
+	DateLocal string `db:"date_local"`
+	Type string `db:"type"`
+	ID int64 `db:"id"`
+	Time 				  JSON `db:"time"`
+	Distance		      JSON `db:"distance"` 
+	Latlng                JSON `db:"latlng"`
+	Altitude              JSON `db:"altitude"`
+	VelocitySmooth        JSON `db:"velocity_smooth"`
+	Heartrate             JSON `db:"heartrate"`		
+	Cadence               JSON `db:"cadence"`		
+	Watts                 JSON `db:"watts"`		
+	Temp                  JSON `db:"temperature"`	
+	Moving                JSON `db:"moving"`	
+	GradeSmooth           JSON `db:"grade_smooth"`
+	GradeAdjustedDistance JSON `db:"grade_adjusted_distance"`
 }
-func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
+func ServeStream(w http.ResponseWriter, r *http.Request, db *sql.DB){
+	// Serves up all stream data as a json object
 
 	vars := mux.Vars(r)
 	id := vars["id"]
 
-	query := fmt.Sprintf("SELECT name, attributes, heartrate_stream, cadence_stream, watts_stream, distance_stream, altitude_stream, latlng_stream FROM streams WHERE id='%s'", id)
+	query := fmt.Sprintf("SELECT name, date, date_local, type, id, time, distance, latlng, altitude, velocity_smooth, heartrate, cadence, watts, temperature, moving, grade_smooth, grade_adjusted_distance FROM streams WHERE id='%s'", id)
 
 	rows, err := db.Query(query)
 
@@ -98,11 +129,13 @@ func ServeActivity(w http.ResponseWriter, r *http.Request, db *sql.DB){
 		log.Fatal(err)
 	}
 
-	s := ActivityStream{}
+	s := Stream{}
 
 	for rows.Next() {
-		err := rows.Scan(&s.Name, &s.Attributes, &s.HeartRate, &s.Cadence, 
-			&s.Watts, &s.Distance, &s.Altitude, &s.LatLng)
+		err := rows.Scan(&s.Name, &s.Date, &s.DateLocal, &s.Type, &s.ID, &s.Time,
+							&s.Distance, &s.Latlng, &s.Altitude, &s.VelocitySmooth, 
+							&s.Heartrate, &s.Cadence, &s.Watts, &s.Temp, &s.Moving, 
+							&s.GradeSmooth, &s.GradeAdjustedDistance)
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -128,7 +161,7 @@ func HandleRequests(db *sql.DB) {
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/activity/{id}/stream", func(w http.ResponseWriter, r *http.Request) {
-		ServeActivity(w, r, db)
+		ServeStream(w, r, db)
 	})
 
 	router.HandleFunc("/activity/latest", func(w http.ResponseWriter, r *http.Request) {

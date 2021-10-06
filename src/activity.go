@@ -82,8 +82,8 @@ func GetActivities(accessToken string, nResults int) []Activity {
 }
 
 type Laps struct {
-	ID            int64  `json:"id"`
-	ResourceState int    `json:"resource_state"`
+	ID            int64  `json:"id" db:"id"`
+	ResourceState int    `json:"resource_state" db:"resource_state"`
 	Name          string `json:"name"`
 	Activity      struct {
 		ID            int64 `json:"id"`
