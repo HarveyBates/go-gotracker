@@ -5,26 +5,35 @@ import moment from 'moment';
 import Map from './map';
 
 
-class Activities extends React.Component {
+class Activity extends React.Component {
 	constructor() {
 		super();
 		this.state = {
 			data: [], 
 			name: "", 
 			date: "",
-			distance: 0
+			distance: 0,
+			activityID: 0
 		};
 	}
 
 	async componentDidMount() {
 		// Initial state
 		try {
-			const response = await fetch('/activity/stream/6014114077', {headers:{
+			// Get the most recent activity 
+			var response = await fetch('/activity/latest', {headers:{
 				"Accept": "application/json",
 				"Content-Type": "application/json"}});
-			const data = await response.json();
-			this.setState({data: data, name: data.Name, date: data.Attributes.start_date, 
-				distance: data.Attributes.distance});
+			var data = await response.json();
+			this.setState({name: data.Name, distance: data.Distance, date: data.StartDateLocal, activityID: data.ID});
+
+			// Get the stream of this activity
+			response = await fetch('/activity/' + this.state.activityID + "/stream", {headers:{
+				"Accept": "application/json",
+				"Content-Type": "application/json"}});
+			data = await response.json();
+			this.setState({data: data});
+			console.log(data)
 		} catch (error) {
 			console.log(error);
 		}
@@ -52,35 +61,49 @@ class Activities extends React.Component {
 			</div>);
 		}
 		else{
-			const distance = this.state.data.Distance.distance.data;
-			const heartrate = this.state.data.HeartRate.heartrate.data;
-			const cadence = this.state.data.Cadence.cadence.data;
-			const watts = this.state.data.Watts.watts.data;
+			const distance = this.state.data.Distance.data;
+			const heartrate = this.state.data.Heartrate.data;
+			const cadence = this.state.data.Cadence.data;
+			const watts = this.state.data.Watts.data;
+			const altitude = this.state.data.Altitude.data;
 
 			const hr = [];
 			const rpm = [];
 			const power = []
+			const alt = []
+			
 			for (let i in distance) {
-				hr.push([distance[i] / 1000, heartrate[i]]);
-				rpm.push([distance[i] / 1000, cadence[i]]);
-				power.push([distance[i] / 1000, watts[i]]);
+				var dMeters = (distance[i] / 1000).toFixed(2)
+				hr.push([dMeters, heartrate[i]]);
+				rpm.push([dMeters, cadence[i]]);
+				power.push([dMeters, watts[i]]);
+				alt.push([dMeters, altitude[i]]);
 			}
 			
 			const options = {
 				title: {
 					text: this.state.name,
-					subtext: moment(this.state.date).format("DD-MM-YYYY hh:mm A")
+					subtext: moment(this.state.date).format("DD-MM-YYYY hh:mm A"),
+					left: 100,
 				},
 				xAxis: {
 					name: "Distance (km)",
 					nameLocation: 'center',
 					nameGap: -15,
-					max: distance.slice(-1)[0] / 1000,
+					max: Math.floor(distance.slice(-1)[0]) / 1000,
 					type: 'value',
 				},
-				yAxis: {
-					type: 'value',
-				},
+				yAxis: [
+					{
+						type: 'value',
+						position: 'left'
+					},
+					{
+						type: 'value',
+						position: 'right',
+						name: "Altitude (m)"
+					},
+				],
 				tooltip: {
 					trigger: 'axis',
 					axisPointer: {
@@ -89,6 +112,7 @@ class Activities extends React.Component {
 				},
 				toolbox: {
 					show: true,
+					right: 100,
 					feature: {
 						saveAsImage: {},
 						dataZoom: {},
@@ -122,7 +146,17 @@ class Activities extends React.Component {
 						color: 'rgba(50, 150, 255, 1)',
 						type: 'line',
 						symbol: 'none',
-						data: power 
+						data: power
+					},
+					{
+						name: "Altitude (m)",
+						color: 'rgba(190, 190, 190, 0.5)',
+						type: 'line',
+						areaStyle: {},
+						symbol: 'none',
+						yAxisIndex: 1,
+						z: 0,
+						data: alt 
 					},
 					{
 						name: "Power Zones",
@@ -195,7 +229,6 @@ class Activities extends React.Component {
 								theme={'macarons'} 
 								style={{height: '100%', width: '100%'}}/>
 						</div>
-						<Map />
 					</div>
 					<table className="activity-table">
 						<thead>
@@ -211,11 +244,12 @@ class Activities extends React.Component {
 							</tr>
 						</tbody>
 					</table>
+					<Map />
 				</div>
 			);
 		}
 	}
 };
 
-export default Activities;
+export default Activity;
 

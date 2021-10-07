@@ -19,12 +19,12 @@ export default class Map extends React.Component {
 	}
 
 	async componentDidMount() {
-		const response = await fetch('/activity/stream/6014114077', {headers:{
+		const response = await fetch('/activity/latest', {headers:{
 			"Accept": "application/json",
 			"Content-Type": "application/json"}});
 		const data = await response.json();
 
-		this.polyline = data.Attributes.map.summary_polyline;
+		this.polyline = data.Summary.map.summary_polyline;
 		const decodedPoly = polyline.decode(this.polyline);
 
 		function flip(coords) {

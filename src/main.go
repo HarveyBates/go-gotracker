@@ -52,7 +52,8 @@ func main() {
 
 	// Get activities
 	token := GetRefreshToken()
-	activity := GetActivities(token, 10)
+	fmt.Println(token)
+	activity := GetActivities(token, 20)
 	PopulateActivites(db, activity, token)
 
 	// API Rotuer
