@@ -13,7 +13,8 @@ class Activity extends React.Component {
 			name: "", 
 			date: "",
 			distance: 0,
-			activityID: 0
+			activityID: 0,
+			type: ""
 		};
 	}
 
@@ -25,7 +26,7 @@ class Activity extends React.Component {
 				"Accept": "application/json",
 				"Content-Type": "application/json"}});
 			var data = await response.json();
-			this.setState({name: data.Name, distance: data.Distance, date: data.StartDateLocal, activityID: data.ID});
+			this.setState({name: data.Name, distance: data.Distance, date: data.StartDate, activityID: data.ID, type: data.Type});
 
 			// Get the stream of this activity
 			response = await fetch('/activity/' + this.state.activityID + "/stream", {headers:{
@@ -33,7 +34,6 @@ class Activity extends React.Component {
 				"Content-Type": "application/json"}});
 			data = await response.json();
 			this.setState({data: data});
-			console.log(data)
 		} catch (error) {
 			console.log(error);
 		}
@@ -52,7 +52,11 @@ class Activity extends React.Component {
 		}
 	}
 
+
+
 	render() {
+
+
 		
 		if (this.state.data.length === 0) {
 			return (
@@ -61,6 +65,65 @@ class Activity extends React.Component {
 			</div>);
 		}
 		else{
+			var swimStream = [];
+			if(this.state.type == "Swim"){
+				var timeArr = this.state.data.Time.data;
+				var distArr = this.state.data.Distance.data;
+				var strokeArr = this.state.data.Cadence.data;
+				var paceArr = this.state.data.VelocitySmooth.data;
+
+				var stroke = [];
+				var pace = [];
+				var pacePer100m = [];
+				if (timeArr != null && distArr != null) {
+					var prevTSplit = 0;
+					var prevDVal = 0;
+					for (let i in timeArr) {
+						var distSplit = Math.floor(distArr[i]);	
+						if(distSplit % 100 == 0 && prevDVal != distSplit){
+							var timeSplit = Math.floor(timeArr[i]);
+							var adjTSplit = timeSplit - prevTSplit;
+							prevTSplit = timeSplit;
+							prevDVal = distSplit;
+							var mins = Math.floor(adjTSplit / 60);
+							var sec = adjTSplit - mins * 60;
+							if(distSplit != 0){
+								console.log(distSplit, mins + ":" + sec);
+							}
+						}
+					}
+				}
+
+
+					//
+					//for (let i in distArr){
+					//	if(strokeArr != null) {
+					//		stroke.push([distArr[i], strokeArr[i]]);
+					//	}
+					//	if(paceArr != null) {
+					//		pace.push([distArr[i], paceArr[i]]);
+					//	}
+					//}
+				//}
+				swimStream = [{
+					name: "Stroke Rate (rpm)",
+					color: 'rgba(0, 0, 0, 1)',
+					type: 'line',
+					step: 'start',
+					symbol: 'none',
+					data: stroke,
+				}, 
+					{
+					name: "Pace",
+					color: 'rgba(50, 150, 255, 1)',
+					type: 'line',
+					step: 'start',
+					yAxisIndex: 1,
+					symbol: 'none',
+					data: pace
+				}];
+				//console.log(swimStream)
+			}
 			const distance = this.state.data.Distance.data;
 			const heartrate = this.state.data.Heartrate.data;
 			const cadence = this.state.data.Cadence.data;
@@ -74,10 +137,17 @@ class Activity extends React.Component {
 			
 			for (let i in distance) {
 				var dMeters = (distance[i] / 1000).toFixed(2)
-				hr.push([dMeters, heartrate[i]]);
+				if (heartrate != null) {
+					hr.push([dMeters, heartrate[i]]);
+				}
 				rpm.push([dMeters, cadence[i]]);
-				power.push([dMeters, watts[i]]);
-				alt.push([dMeters, altitude[i]]);
+				if (watts != null) {
+					power.push([dMeters, watts[i]]);
+				}
+				if (altitude != null) {
+					alt.push([dMeters, altitude[i]]);
+				}
+
 			}
 			
 			const options = {
@@ -90,7 +160,7 @@ class Activity extends React.Component {
 					name: "Distance (km)",
 					nameLocation: 'center',
 					nameGap: -15,
-					max: Math.floor(distance.slice(-1)[0]) / 1000,
+					//max: Math.floor(distance.slice(-1)[0]) / 1000,
 					type: 'value',
 				},
 				yAxis: [
@@ -127,37 +197,8 @@ class Activity extends React.Component {
 					}
 				],
 				series: [
-					{
-						name: "Heartrate (bpm)",
-						color: 'rgba(255, 80, 80, 1)',
-						type: 'line',
-						symbol: 'none',
-						data: hr
-					},
-					{
-						name: "Cadence (rpm)",
-						color: 'rgba(0, 0, 0, 1)',
-						type: 'line',
-						symbol: 'none',
-						data: rpm 
-					},
-					{
-						name: "Power (W)",
-						color: 'rgba(50, 150, 255, 1)',
-						type: 'line',
-						symbol: 'none',
-						data: power
-					},
-					{
-						name: "Altitude (m)",
-						color: 'rgba(190, 190, 190, 0.5)',
-						type: 'line',
-						areaStyle: {},
-						symbol: 'none',
-						yAxisIndex: 1,
-						z: 0,
-						data: alt 
-					},
+					swimStream[0],
+					swimStream[1],
 					{
 						name: "Power Zones",
 						type: "line",
