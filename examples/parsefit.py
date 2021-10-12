@@ -37,32 +37,13 @@ def parse_fit_file(fName):
                 elif row.name == "device_info":
                     deviceInfo.append(parse_row(row, row.name))
 
-    #device_df = pd.DataFrame(deviceInfo, columns=deviceFields).dropna(axis=1, how="all")
-    ##device_df.to_csv("device-info.csv")
-    #device_json = device_df.to_json(orient="records")
-    #device_json = json.loads(device_json)
-    ##print(json.dumps(device_json, indent=4))
-    #for device in device_json:
-    #    if device["battery_voltage"] != None:
-    #        print(device["product_name"], device["battery_voltage"])
-    #    elif device["charge"] != None:
-    #        print(device["product_name"], device["charge"])
-
     records_df = pd.DataFrame(records, columns=recordFields).dropna(axis=1, how="all")
     records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
     records_df.set_index("timestamp", inplace=True)
+
     print(records_df)
-    write_to_influxdb(records_df)
-    #client.write_points(records_df, "activities")
 
-    #laps_df = pd.DataFrame(laps, columns=lapFields).dropna(axis=1, how="all")
-    #laps_df.to_csv("swim-laps.csv")
-
-    #lengths_df = pd.DataFrame(lengths, columns=lengthFields).dropna(axis=1, how="all")
-    #lengths_df.to_csv("swim-lengths.csv")
-
-    #session_df = pd.DataFrame([session], columns=sessionFields).dropna(axis=1, how="all")
-    #session_df.to_csv("swim-session.csv")
+    return records_df
 
 
 def write_to_influxdb(dataframe):
@@ -76,6 +57,23 @@ def write_to_influxdb(dataframe):
                                                             exponential_base=2)) as _write_client:
             _write_client.write("activities", "user", record=dataframe, data_frame_measurement_name="bike-outdoors")
     
+
+def get_from_influx():
+    q = '''
+        from(bucket: "activities") 
+            |> range(start: time(v: "2021-09-24T22:45:25Z"), stop: time(v: "2021-09-25T02:17:58Z")) 
+            |> filter(fn: (r) => r["_measurement"] == "bike-outdoors") 
+            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
+            |> sort(columns: ["_time"], desc: false)
+    '''
+    with InfluxDBClient(url="http://localhost:8086", token=INFLUXDB_TOKEN, org="user") as _client:
+        query_api = _client.query_api()
+        tables = query_api.query_data_frame(q)
+        df = pd.DataFrame(tables)
+        print(df.head())
+        print(df.tail())
+
+
 
 
 def parse_row(row, rowType):
@@ -121,7 +119,10 @@ def parse_row(row, rowType):
 
 
 def main():
-    parse_fit_file("bike-outdoors.fit")
+    df = parse_fit_file("bike-outdoors.fit")
+    write_to_influxdb(df)
+
+    #get_from_influx()
 
 
 if __name__ == "__main__":

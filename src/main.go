@@ -46,18 +46,20 @@ func SqlConnect() *sql.DB{
 
 func main() {
 
-	db := SqlConnect()
+	InfluxConnection()
 
-	CreateAthlete(db)
+	//db := SqlConnect()
 
-	// Get activities
-	token := GetRefreshToken()
-	fmt.Println(token)
-	activity := GetActivities(token, 20)
-	PopulateActivites(db, activity, token)
+	//CreateAthlete(db)
 
-	// API Rotuer
-	HandleRequests(db)
+	//// Get activities
+	//token := GetRefreshToken()
+	//fmt.Println(token)
+	//activity := GetActivities(token, 20)
+	//PopulateActivites(db, activity, token)
+
+	//// API Rotuer
+	//HandleRequests(db)
 
 
 
@@ -70,7 +72,7 @@ func main() {
 
 //	PopulateStatsTable(db)
 
-	db.Close()
+	//db.Close()
 
 //	distanceArr, wattsArr := GetWatts("5901981172", refreshToken)
 
