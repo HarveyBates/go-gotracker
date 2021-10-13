@@ -21,7 +21,7 @@ func InfluxConnection() {
             |> filter(fn: (r) => r["_measurement"] == "bike-outdoors") 
 	`)
 
-	queryAPI := client.QueryAPI("user")
+	queryAPI := client.QueryAPI(org)
 
 	result, err := queryAPI.Query(context.Background(), q)
 

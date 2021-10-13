@@ -8,7 +8,6 @@ from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
 
 load_dotenv()
-
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
 
 recordFields = []
@@ -23,7 +22,7 @@ def parse_fit_file(fName):
     laps = []
     lengths = []
     deviceInfo = []
-    with fitdecode.FitReader(fName) as ff:
+    with fitdecode.FitReader(f"activities/{fName}") as ff:
         for row in ff:
             if isinstance(row, fitdecode.records.FitDataMessage):
                 if row.name == "session":
@@ -37,16 +36,74 @@ def parse_fit_file(fName):
                 elif row.name == "device_info":
                     deviceInfo.append(parse_row(row, row.name))
 
+    #Postgres
+    # - Session
+
+    #Influx:
+    # - Record
+    # - Laps
+    # - Length
+    # - Device Information
+
+    sport_type = "unknown"
+    sub_sport = "unknown"
+
+    # Session - Information at the end of an activity
+    session_df = pd.DataFrame([session], columns=sessionFields).dropna(axis=1, how="all")
+    if not session_df.empty:
+        if "sport" in session_df:
+            sport_type = session_df["sport"].values[0]
+            print(sport_type)
+        if "sub_sport" in session_df:
+            sub_sport = session_df["sub_sport"].values[0]
+            print(sub_sport)
+
+    print(session_df)
+
+    file_id = fName[:-4]
+    activity_name = f"{sport_type}-{sub_sport}-{file_id}"
+
+    print(activity_name)
+
+    # Time series data covering the entire activity
     records_df = pd.DataFrame(records, columns=recordFields).dropna(axis=1, how="all")
-    records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
-    records_df.set_index("timestamp", inplace=True)
+    if "timestamp" in records_df:
+        records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        records_df.set_index("timestamp", inplace=True)
+    if not records_df.empty:
+        print(records_df)
+        # Write into records bucket
+        write_df_to_influxdb(records_df, "records", activity_name)
 
-    print(records_df)
+    # Splits for each lap inluding rest time
+    lap_df = pd.DataFrame(laps, columns=lapFields).dropna(axis=1, how="all")
+    if "timestamp" in lap_df:
+        lap_df["timestamp"] = pd.to_datetime(lap_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        lap_df.set_index("timestamp", inplace=True)
+    if not lap_df.empty:
+        print(lap_df)
 
-    return records_df
+    # Length decribes splits for each length in the pool (e.g. 25 meter splits)
+    length_df = pd.DataFrame(lengths, columns=lengthFields).dropna(axis=1, how="all")
+    if "timestamp" in length_df:
+        length_df["timestamp"] = pd.to_datetime(length_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        length_df.set_index("timestamp", inplace=True)
+    if not length_df.empty:
+        print(length_df)
+
+    # Device information e.g. battery over an activity 
+    device_df = pd.DataFrame(deviceInfo, columns=deviceFields).dropna(axis=1, how="all")
+    if "timestamp" in device_df:
+        device_df["timestamp"] = pd.to_datetime(device_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        device_df.set_index("timestamp", inplace=True)
+    if not device_df.empty:
+        print(device_df)
+
+     
+## Gotta think about the flow of data in a triathlon
 
 
-def write_to_influxdb(dataframe):
+def write_df_to_influxdb(dataframe, bucket, activity_name):
     with InfluxDBClient(url="http://localhost:8086", token=INFLUXDB_TOKEN, org="user") as _client:
         with _client.write_api(write_options=WriteOptions(batch_size=500,
                                                             flush_interval=10_000,
@@ -55,25 +112,8 @@ def write_to_influxdb(dataframe):
                                                             max_retries=5,
                                                             max_retry_delay=30_000,
                                                             exponential_base=2)) as _write_client:
-            _write_client.write("activities", "user", record=dataframe, data_frame_measurement_name="bike-outdoors")
+            _write_client.write(bucket, "user", record=dataframe, data_frame_measurement_name=activity_name)
     
-
-def get_from_influx():
-    q = '''
-        from(bucket: "activities") 
-            |> range(start: time(v: "2021-09-24T22:45:25Z"), stop: time(v: "2021-09-25T02:17:58Z")) 
-            |> filter(fn: (r) => r["_measurement"] == "bike-outdoors") 
-            |> pivot(rowKey:["_time"], columnKey: ["_field"], valueColumn: "_value")
-            |> sort(columns: ["_time"], desc: false)
-    '''
-    with InfluxDBClient(url="http://localhost:8086", token=INFLUXDB_TOKEN, org="user") as _client:
-        query_api = _client.query_api()
-        tables = query_api.query_data_frame(q)
-        df = pd.DataFrame(tables)
-        print(df.head())
-        print(df.tail())
-
-
 
 
 def parse_row(row, rowType):
@@ -118,11 +158,15 @@ def parse_row(row, rowType):
     return parsedRow 
 
 
-def main():
-    df = parse_fit_file("bike-outdoors.fit")
-    write_to_influxdb(df)
 
-    #get_from_influx()
+def main(): 
+    #parse_fit_file("bike-outdoors.fit")
+    for file in os.listdir("activities"):
+        if ".fit" in file:
+            parse_fit_file(file)
+            break
+    #parse_fit_file("swim-ocean.fit")
+    #write_db_to_influxdb()
 
 
 if __name__ == "__main__":

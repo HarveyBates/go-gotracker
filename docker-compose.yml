@@ -12,6 +12,17 @@ services:
     environment:
       - INFLUXDB_ADMIN_USER=${INFLUXDB_USERNAME}
       - INFLUXDB_ADMIN_PASSWORD=${INFLUXDB_PASSWORD}
+  postgres:
+    image: postgres:latest
+    restart: always
+    environment:
+      POSTGRES_DATABASE: go-tracker
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db:/var/lib/postgres
 
 volumes:
   go-tracker: 

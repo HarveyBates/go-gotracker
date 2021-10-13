@@ -16,13 +16,13 @@ type TestValues struct {
 
 const (
 	hostname = "127.0.0.1"
-	port = 27222
+	port = 5432
 	username = "postgres"
 	password = "admin"
 	dbname= "go-gotracker"
 )
 
-func SqlConnect() *sql.DB{
+func PostgresConnect() *sql.DB{
 	fmt.Print("Attempting to connect to db... ")
 
 	conn := fmt.Sprintf("port=%d host=%s user=%s password=%s dbname=%s sslmode=disable",
@@ -48,7 +48,7 @@ func main() {
 
 	InfluxConnection()
 
-	//db := SqlConnect()
+	//db := PostgresConnect()
 
 	//CreateAthlete(db)
 
