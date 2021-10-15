@@ -6,6 +6,8 @@ from dotenv import load_dotenv
 import os
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
+import psycopg2
+import sys
 
 load_dotenv()
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
@@ -17,7 +19,7 @@ lengthFields = []
 deviceFields = []
 
 
-def parse_fit_file(fName):
+def parse_fit_file(conn, fName):
     records = []
     laps = []
     lengths = []
@@ -51,19 +53,22 @@ def parse_fit_file(fName):
     # Session - Information at the end of an activity
     session_df = pd.DataFrame([session], columns=sessionFields).dropna(axis=1, how="all")
     if not session_df.empty:
+        #print(session_df)
         if "sport" in session_df:
             sport_type = session_df["sport"].values[0]
-            print(sport_type)
+            #print(sport_type)
         if "sub_sport" in session_df:
             sub_sport = session_df["sub_sport"].values[0]
-            print(sub_sport)
-
-    print(session_df)
+            #print(sub_sport)
 
     file_id = fName[:-4]
-    activity_name = f"{sport_type}-{sub_sport}-{file_id}"
-
+    activity_name = f"{sport_type}_{sub_sport}_{file_id}"
     print(activity_name)
+
+    if not session_df.empty:
+        write_df_to_postgres(conn, session_df, sport_type, activity_name)
+        sys.exit(1)
+
 
     # Time series data covering the entire activity
     records_df = pd.DataFrame(records, columns=recordFields).dropna(axis=1, how="all")
@@ -71,7 +76,7 @@ def parse_fit_file(fName):
         records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
         records_df.set_index("timestamp", inplace=True)
     if not records_df.empty:
-        print(records_df)
+        #print(records_df)
         # Write into records bucket
         write_df_to_influxdb(records_df, "records", activity_name)
 
@@ -81,7 +86,8 @@ def parse_fit_file(fName):
         lap_df["timestamp"] = pd.to_datetime(lap_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
         lap_df.set_index("timestamp", inplace=True)
     if not lap_df.empty:
-        print(lap_df)
+        write_df_to_influxdb(lap_df, "laps", activity_name)
+        #print(lap_df)
 
     # Length decribes splits for each length in the pool (e.g. 25 meter splits)
     length_df = pd.DataFrame(lengths, columns=lengthFields).dropna(axis=1, how="all")
@@ -89,7 +95,8 @@ def parse_fit_file(fName):
         length_df["timestamp"] = pd.to_datetime(length_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
         length_df.set_index("timestamp", inplace=True)
     if not length_df.empty:
-        print(length_df)
+        write_df_to_influxdb(length_df, "lengths", activity_name)
+        #print(length_df)
 
     # Device information e.g. battery over an activity 
     device_df = pd.DataFrame(deviceInfo, columns=deviceFields).dropna(axis=1, how="all")
@@ -97,10 +104,34 @@ def parse_fit_file(fName):
         device_df["timestamp"] = pd.to_datetime(device_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
         device_df.set_index("timestamp", inplace=True)
     if not device_df.empty:
-        print(device_df)
+        write_df_to_influxdb(device_df, "device", activity_name)
+        #print(device_df)
+
+def connect_to_postgres():
+    return psycopg2.connect(user="postgres",
+                            password="admin",
+                            host="localhost",
+                            port="27222",
+                            dbname="gogotracker")
 
      
-## Gotta think about the flow of data in a triathlon
+def write_df_to_postgres(conn, dataframe, sport_type, activity_name):
+    # Check if table exists
+    check_table_exists = f"CREATE TABLE IF NOT EXISTS {sport_type}_session()"
+    cursor = conn.cursor()
+    cursor.execute(check_table_exists)
+    conn.commit()
+
+    # Check if column in table
+    # SOMETHING LIKE ALTER TABLE...
+
+    # Add data to column
+    df_column_names = list(dataframe)
+    df_column_names.insert(0, "activity_name")
+    column_names = ",".join(df_column_names)
+    values = "VALUES({})".format(",".join(["%s" for _ in df_column_names]))
+    insert_stmt = f"INSERT INTO {sport_type}_session ({column_names}) {values}"
+    print(insert_stmt)
 
 
 def write_df_to_influxdb(dataframe, bucket, activity_name):
@@ -161,10 +192,10 @@ def parse_row(row, rowType):
 
 def main(): 
     #parse_fit_file("bike-outdoors.fit")
+    conn = connect_to_postgres()
     for file in os.listdir("activities"):
         if ".fit" in file:
-            parse_fit_file(file)
-            break
+            parse_fit_file(conn, file)
     #parse_fit_file("swim-ocean.fit")
     #write_db_to_influxdb()
 

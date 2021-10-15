@@ -16,11 +16,11 @@ services:
     image: postgres:latest
     restart: always
     environment:
-      POSTGRES_DATABASE: go-tracker
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: admin
+      POSTGRES_DB: gogotracker
     ports:
-      - "5432:5432"
+      - "27222:5432"
     volumes:
       - ./db:/var/lib/postgres
 
