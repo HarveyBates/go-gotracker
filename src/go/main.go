@@ -1,80 +1,19 @@
 package main
 
 import (
-	"fmt"
-	"log"
-	"time"
-	"database/sql"
-	_ "github.com/lib/pq"
 )
-
-type TestValues struct {
-	Name string `json:"name"`
-	DOB string `json:"date_of_birth"`
-}
-
-
-const (
-	hostname = "127.0.0.1"
-	port = 5432
-	username = "postgres"
-	password = "admin"
-	dbname= "go-gotracker"
-)
-
-func PostgresConnect() *sql.DB{
-	fmt.Print("Attempting to connect to db... ")
-
-	conn := fmt.Sprintf("port=%d host=%s user=%s password=%s dbname=%s sslmode=disable",
-		port, hostname, username, password, dbname)
-
-	db, err := sql.Open("postgres", conn)	
-
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	db.SetConnMaxLifetime(time.Minute * 3) // Timeout. Ensures conns close safely.
-	db.SetMaxOpenConns(5)
-	db.SetMaxIdleConns(5)
-
-	fmt.Println("Connected")
-
-	return db
-}
 
 
 func main() {
 
-	InfluxConnection()
+	client := InfluxConnection()
 
-	//db := PostgresConnect()
-
-	//CreateAthlete(db)
-
-	//// Get activities
-	//token := GetRefreshToken()
-	//fmt.Println(token)
-	//activity := GetActivities(token, 20)
-	//PopulateActivites(db, activity, token)
+	db := PostgresConnection()
 
 	//// API Rotuer
-	//HandleRequests(db)
+	HandleRequests(db)
 
+	defer client.Close()
+	defer db.Close()
 
-
-	//stats := GetStats(token)
-
-	// Totals - Recent, YTD, All-time
-	//PopulateRunStats(db, stats)
-	//PopulateRideStats(db, stats)
-	//PopulateSwimStats(db, stats)
-
-//	PopulateStatsTable(db)
-
-	//db.Close()
-
-//	distanceArr, wattsArr := GetWatts("5901981172", refreshToken)
-
-//	MakeChart(distanceArr, wattsArr, "Workout #1", "2 x 20 min @ 240 Watts")
 }

@@ -1,168 +1,140 @@
 package main
 
+
 import (
 	"fmt"
 	"log"
-	"errors"
+	"os"
+	"time"
+	"context"
 	"net/http"
 	"encoding/json"
+	"github.com/gorilla/mux"
+	"github.com/joho/godotenv"
 	"database/sql"
 	_ "github.com/lib/pq"
-	"github.com/gorilla/mux"
+	"github.com/influxdata/influxdb-client-go/v2"
 )
 
-type JSON map[string]interface{}
-func (s *JSON) Scan(src interface{}) error {
-	source, ok := src.([]byte)
 
-	if !ok {
-		return errors.New("Assert type: .([]byte)")
-	}
-
-	var i interface{}
-
-	err := json.Unmarshal(source, &i)
+func GetEnvVariable(key string) string {
+	err := godotenv.Load(".env")
 
 	if err != nil {
-		return err
+		log.Fatalf("Error loading .env file")
 	}
 
-	*s, ok = i.(map[string]interface{})
-
-	if !ok {
-		return errors.New("Assert type: .(map[string]interface{})")
-	}
-
-	return nil
+	return os.Getenv(key)
 }
 
 
-type LapsArr []Laps 
-func (l *LapsArr) Scan(src interface{}) error {
-	// The JSON method doesn't work for json arrays 
-	source, ok := src.([]byte)
+func PostgresConnection() *sql.DB{
+	const (
+		hostname = "localhost"
+		port = 27222
+		username = "postgres"
+		password = "admin"
+		dbname= "gogotracker"
+	)
 
-	if !ok {
-		return errors.New("Assert type: .([]byte) failed")
-	}
+	fmt.Print("Attempting to connect to postgres... ")
 
-	var i []Laps
+	conn := fmt.Sprintf("port=%d host=%s user=%s password=%s dbname=%s sslmode=disable",
+		port, hostname, username, password, dbname)
 
-	err := json.Unmarshal(source, &i)
+	psqlDB, err := sql.Open("postgres", conn)	
 
 	if err != nil {
-		return err
+		log.Fatal(err)
 	}
 
-	*l = i
+	psqlDB.SetConnMaxLifetime(time.Minute * 3) // Timeout. Ensures conns close safely.
+	psqlDB.SetMaxOpenConns(5)
+	psqlDB.SetMaxIdleConns(5)
 
-	return nil
+	fmt.Println("connected to postgres.")
+
+	return psqlDB 
 }
 
 
+func (m *ActivityResponse) Scan(src interface{}) error {
+	bs, ok := src.([]byte)
+	if !ok {
+		log.Fatal("sad day")
+	}
+	return json.Unmarshal(bs, m)
+}
 type ActivityResponse struct {
-	Name string`db:"name"`
-	StartDate string `db:"date"`
-	StartDateLocal string `db:"date_local"`
-	Type string `db:"type"`
-	ID int64 `db:"id"`
-	ElapsedTime int64 `db:"elapsed_time"`
-	MovingTime int64 `db:"moving_time"`
-	Distance float64 `db:"distance"`
-	HasHeartRate bool `db:"has_heart_rate"`
-	Summary JSON `db:"summary"`
-	Laps LapsArr `db:"laps"`
-	Stats JSON `db:"stats"`
+	Activity interface{}
 }
 func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
-	// Get the latest activity
 
-	a := new(ActivityResponse)
+	var activity ActivityResponse
 
-	query := fmt.Sprintf("SELECT * FROM activities ORDER BY id DESC LIMIT 1")
+	query := fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM running_session ORDER BY activity_id DESC LIMIT 1) activity")
 
-	err := db.QueryRow(query).Scan(&a.Name, &a.StartDate, &a.StartDateLocal,
-							&a.Type, &a.ID, &a.ElapsedTime, &a.MovingTime,
-								&a.Distance, &a.HasHeartRate, &a.Summary, 
-								    &a.Laps, &a.Stats)
+	// TODO need to figure out how to get a json response with no struct
+	err := db.QueryRow(query).Scan(&activity)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.NewEncoder(w).Encode(activity)
+
+	fmt.Println("[GET] Lastest activity")
+
+}
 	
-	if err != nil {
-		log.Fatal(err)
-	}
 
-	json.NewEncoder(w).Encode(a)
 
-	fmt.Println("[GET] Lastest activity - ", a.ID)
+func InfluxConnection() influxdb2.Client {
+	var token = GetEnvVariable("INFLUXDB_TOKEN")
+
+	fmt.Print("Attempting to connect to influxdb... ")
+
+	client := influxdb2.NewClient("http://localhost:8086", token)
+
+	fmt.Println("connected to influxdb.")
+
+	return client
 }
 
 
-type Stream	 struct {
-	Name string `db:"name"`
-	Date string `db:"date"`
-	DateLocal string `db:"date_local"`
-	Type string `db:"type"`
-	ID int64 `db:"id"`
-	Time 				  JSON `db:"time"`
-	Distance		      JSON `db:"distance"` 
-	Latlng                JSON `db:"latlng"`
-	Altitude              JSON `db:"altitude"`
-	VelocitySmooth        JSON `db:"velocity_smooth"`
-	Heartrate             JSON `db:"heartrate"`		
-	Cadence               JSON `db:"cadence"`		
-	Watts                 JSON `db:"watts"`		
-	Temp                  JSON `db:"temperature"`	
-	Moving                JSON `db:"moving"`	
-	GradeSmooth           JSON `db:"grade_smooth"`
-	GradeAdjustedDistance JSON `db:"grade_adjusted_distance"`
-}
-func ServeStream(w http.ResponseWriter, r *http.Request, db *sql.DB){
-	// Serves up all stream data as a json object
+func GetRecord(client influxdb2.Client, bucket string, activityName int64, startTime string, endTime string) {
+	const org = "user"
 
-	vars := mux.Vars(r)
-	id := vars["id"]
+	q := fmt.Sprintf(`
+        from(bucket: %s) 
+            |> range(start: time(v: %s), stop: time(v: %s)) 
+            |> filter(fn: (r) => r["_measurement"] == %s) 
+	`, bucket, startTime, endTime, activityName)
 
-	query := fmt.Sprintf("SELECT name, date, date_local, type, id, time, distance, latlng, altitude, velocity_smooth, heartrate, cadence, watts, temperature, moving, grade_smooth, grade_adjusted_distance FROM streams WHERE id='%s'", id)
+	queryAPI := client.QueryAPI(org)
 
-	rows, err := db.Query(query)
+	result, err := queryAPI.Query(context.Background(), q)
 
-	if err != nil{
-		log.Fatal(err)
-	}
-
-	s := Stream{}
-
-	for rows.Next() {
-		err := rows.Scan(&s.Name, &s.Date, &s.DateLocal, &s.Type, &s.ID, &s.Time,
-							&s.Distance, &s.Latlng, &s.Altitude, &s.VelocitySmooth, 
-							&s.Heartrate, &s.Cadence, &s.Watts, &s.Temp, &s.Moving, 
-							&s.GradeSmooth, &s.GradeAdjustedDistance)
-		if err != nil {
-			log.Fatal(err)
+	if err == nil {
+		for result.Next() {
+			if result.TableChanged() {
+				fmt.Printf("table: %s\n", result.TableMetadata().String())
+			}
+			fmt.Printf("ts: %v field: %v value: %v\n", result.Record().Time(), result.Record().Field(), result.Record().Value())
 		}
-	}
-
-	err = rows.Err()
-
-	if err != nil {
+		if result.Err() != nil {
+			fmt.Printf("query parsing error: %s\n", result.Err().Error())
+		}
+	} else {
 		log.Fatal(err)
-	} 
-
-	json.NewEncoder(w).Encode(s)
-
-	fmt.Println("[GET] Activity Stream - ", id)
-
+	}
 }
-
 
 
 func HandleRequests(db *sql.DB) {
 	fmt.Println("Starting gotracker router")
 
 	router := mux.NewRouter().StrictSlash(true)
-
-	router.HandleFunc("/activity/{id}/stream", func(w http.ResponseWriter, r *http.Request) {
-		ServeStream(w, r, db)
-	})
 
 	router.HandleFunc("/activity/latest", func(w http.ResponseWriter, r *http.Request) {
 		ServeLatestActivity(w, r, db)

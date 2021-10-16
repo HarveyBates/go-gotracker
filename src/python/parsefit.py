@@ -7,7 +7,9 @@ import os
 from influxdb_client import InfluxDBClient, Point, WriteOptions
 from influxdb_client.client.write_api import SYNCHRONOUS
 import psycopg2
+import psycopg2.extras
 import sys
+import re
 
 load_dotenv()
 INFLUXDB_TOKEN = os.getenv("INFLUXDB_TOKEN")
@@ -61,19 +63,20 @@ def parse_fit_file(conn, fName):
             sub_sport = session_df["sub_sport"].values[0]
             #print(sub_sport)
 
-    file_id = fName[:-4]
-    activity_name = f"{sport_type}_{sub_sport}_{file_id}"
+    activity_id = fName[:-4]
+    activity_name = f"{sport_type}_{sub_sport}_{activity_id}"
     print(activity_name)
 
     if not session_df.empty:
-        write_df_to_postgres(conn, session_df, sport_type, activity_name)
-        sys.exit(1)
+        write_df_to_postgres(conn, session_df, sport_type, activity_name, activity_id)
+    else:
+        print("Session information was empty")
 
 
     # Time series data covering the entire activity
     records_df = pd.DataFrame(records, columns=recordFields).dropna(axis=1, how="all")
     if "timestamp" in records_df:
-        records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        records_df["timestamp"] = pd.to_datetime(records_df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ")
         records_df.set_index("timestamp", inplace=True)
     if not records_df.empty:
         #print(records_df)
@@ -83,7 +86,7 @@ def parse_fit_file(conn, fName):
     # Splits for each lap inluding rest time
     lap_df = pd.DataFrame(laps, columns=lapFields).dropna(axis=1, how="all")
     if "timestamp" in lap_df:
-        lap_df["timestamp"] = pd.to_datetime(lap_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        lap_df["timestamp"] = pd.to_datetime(lap_df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ")
         lap_df.set_index("timestamp", inplace=True)
     if not lap_df.empty:
         write_df_to_influxdb(lap_df, "laps", activity_name)
@@ -92,7 +95,7 @@ def parse_fit_file(conn, fName):
     # Length decribes splits for each length in the pool (e.g. 25 meter splits)
     length_df = pd.DataFrame(lengths, columns=lengthFields).dropna(axis=1, how="all")
     if "timestamp" in length_df:
-        length_df["timestamp"] = pd.to_datetime(length_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        length_df["timestamp"] = pd.to_datetime(length_df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ")
         length_df.set_index("timestamp", inplace=True)
     if not length_df.empty:
         write_df_to_influxdb(length_df, "lengths", activity_name)
@@ -101,7 +104,7 @@ def parse_fit_file(conn, fName):
     # Device information e.g. battery over an activity 
     device_df = pd.DataFrame(deviceInfo, columns=deviceFields).dropna(axis=1, how="all")
     if "timestamp" in device_df:
-        device_df["timestamp"] = pd.to_datetime(device_df["timestamp"], format="%Y-%m-%d %H:%M:%S%z")
+        device_df["timestamp"] = pd.to_datetime(device_df["timestamp"], format="%Y-%m-%dT%H:%M:%SZ")
         device_df.set_index("timestamp", inplace=True)
     if not device_df.empty:
         write_df_to_influxdb(device_df, "device", activity_name)
@@ -115,7 +118,26 @@ def connect_to_postgres():
                             dbname="gogotracker")
 
      
-def write_df_to_postgres(conn, dataframe, sport_type, activity_name):
+def write_df_to_postgres(conn, dataframe, sport_type, activity_name, activity_id):
+
+    # Add activity ID to dataframe
+    dataframe["activity_id"] = activity_id 
+    activity_id_col = dataframe.pop("activity_id")
+    dataframe.insert(0, "activity_id", activity_id_col)
+
+    # Add activity name to dataframe
+    dataframe["activity_name"] = activity_name
+    activity_col = dataframe.pop("activity_name")
+    dataframe.insert(1, "activity_name", activity_col)
+
+    # Calculate end_time and add to dataframe
+    start_time = datetime.datetime.strptime(dataframe["start_time"][0], "%Y-%m-%dT%H:%M:%SZ")
+    elapsed_time = datetime.timedelta(seconds=dataframe["total_elapsed_time"][0])
+    end_time = (start_time + elapsed_time).strftime("%Y-%m-%dT%H:%M:%SZ")
+    dataframe["end_time"] = end_time
+    end_time_col = dataframe.pop("end_time")
+    dataframe.insert(4, "end_time", end_time_col)
+
     # Check if table exists
     check_table_exists = f"CREATE TABLE IF NOT EXISTS {sport_type}_session()"
     cursor = conn.cursor()
@@ -123,15 +145,29 @@ def write_df_to_postgres(conn, dataframe, sport_type, activity_name):
     conn.commit()
 
     # Check if column in table
-    # SOMETHING LIKE ALTER TABLE...
-
-    # Add data to column
     df_column_names = list(dataframe)
-    df_column_names.insert(0, "activity_name")
+    # Create columns with corresponding types
+    for col, val in zip(df_column_names, dataframe.values[0]):
+        if isinstance(val, int) or col == "activity_id":
+            check_col_exists = f"ALTER TABLE {sport_type}_session ADD COLUMN IF NOT EXISTS {col} INTEGER"
+            if col == "activity_id":
+                # Use this to check if item already exists
+                check_col_exists = f"ALTER TABLE {sport_type}_session ADD COLUMN IF NOT EXISTS {col} BIGINT UNIQUE"
+                conn.commit()
+        elif isinstance(val, float):
+            check_col_exists = f"ALTER TABLE {sport_type}_session ADD COLUMN IF NOT EXISTS {col} REAL"
+        else:
+            check_col_exists = f"ALTER TABLE {sport_type}_session ADD COLUMN IF NOT EXISTS {col} TEXT"
+        cursor.execute(check_col_exists)
+        conn.commit()
+        
+    # Add data to column
     column_names = ",".join(df_column_names)
-    values = "VALUES({})".format(",".join(["%s" for _ in df_column_names]))
-    insert_stmt = f"INSERT INTO {sport_type}_session ({column_names}) {values}"
-    print(insert_stmt)
+    values = "{}".format(",".join(["%s" for _ in df_column_names]))
+    insert_stmt = f"INSERT INTO {sport_type}_session ({column_names}) VALUES ({values}) ON CONFLICT (activity_id) DO NOTHING"
+    psycopg2.extras.execute_batch(cursor, insert_stmt, dataframe.values)
+    conn.commit()
+    cursor.close()
 
 
 def write_df_to_influxdb(dataframe, bucket, activity_name):
@@ -175,7 +211,8 @@ def parse_row(row, rowType):
                 if field.value != None:
                     if isinstance(field.value, datetime.datetime):
                         # Convert datetime to string
-                        parsedRow.update({field.name: str(field.value)})
+                        parsedRow.update({field.name: field.value.strftime("%Y-%m-%dT%H:%M:%SZ")})
+
                     elif "lat" in field.name or "long" in field.name:
                         if field.value == 0:
                             # Indoor activity or no position data
