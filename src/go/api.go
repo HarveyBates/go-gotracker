@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 	"context"
+	"errors"
 	"net/http"
 	"encoding/json"
 	"github.com/gorilla/mux"
@@ -58,32 +59,52 @@ func PostgresConnection() *sql.DB{
 }
 
 
-func (m *ActivityResponse) Scan(src interface{}) error {
-	bs, ok := src.([]byte)
-	if !ok {
-		log.Fatal("sad day")
-	}
-	return json.Unmarshal(bs, m)
-}
-type ActivityResponse struct {
-	Activity interface{}
-}
-func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func (s *JSON) Scan(src interface{}) error {
+	source, ok := src.([]byte)
 
-	var activity ActivityResponse
+	if !ok {
+		return errors.New("Assert type: .([]byte)")
+	}
+
+	var i interface{}
+
+	err := json.Unmarshal(source, &i)
+
+	if err != nil {
+		return err
+	}
+
+	*s, ok = i.(map[string]interface{})
+
+	if !ok {
+		return errors.New("Assert type: .(map[string]interface{})")
+	}
+
+	return nil
+}
+type JSON map[string]interface{}
+func ServeLatestRunActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+
+	var activity JSON
 
 	query := fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM running_session ORDER BY activity_id DESC LIMIT 1) activity")
 
-	// TODO need to figure out how to get a json response with no struct
 	err := db.QueryRow(query).Scan(&activity)
 
 	if err != nil {
 		log.Fatal(err)
 	}
 
+
 	json.NewEncoder(w).Encode(activity)
 
-	fmt.Println("[GET] Lastest activity")
+	fmt.Print("[GET] Lastest activity ")
+
+	sport := activity["sport"].(string)
+	id := activity["activity_id"].(float64)
+	startTime := activity["start_time"].(string)
+	endTime := activity["start_time"].(string)
+	fmt.Println(sport, id, startTime, endTime)
 
 }
 	
@@ -136,7 +157,7 @@ func HandleRequests(db *sql.DB) {
 
 	router := mux.NewRouter().StrictSlash(true)
 
-	router.HandleFunc("/activity/latest", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/activity/latest/", func(w http.ResponseWriter, r *http.Request) {
 		ServeLatestActivity(w, r, db)
 	})
 
