@@ -59,6 +59,19 @@ func PostgresConnection() *sql.DB{
 }
 
 
+func InfluxConnection() influxdb2.Client {
+	var token = GetEnvVariable("INFLUXDB_TOKEN")
+
+	fmt.Print("Attempting to connect to influxdb... ")
+
+	client := influxdb2.NewClient("http://localhost:8086", token)
+
+	fmt.Println("connected to influxdb.")
+
+	return client
+}
+
+
 func (s *JSON) Scan(src interface{}) error {
 	source, ok := src.([]byte)
 
@@ -82,8 +95,10 @@ func (s *JSON) Scan(src interface{}) error {
 
 	return nil
 }
+
+
 type JSON map[string]interface{}
-func ServeLatestRunActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 
 	var activity JSON
 
@@ -95,7 +110,6 @@ func ServeLatestRunActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) 
 		log.Fatal(err)
 	}
 
-
 	json.NewEncoder(w).Encode(activity)
 
 	fmt.Print("[GET] Lastest activity ")
@@ -104,34 +118,45 @@ func ServeLatestRunActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) 
 	id := activity["activity_id"].(float64)
 	startTime := activity["start_time"].(string)
 	endTime := activity["start_time"].(string)
+
 	fmt.Println(sport, id, startTime, endTime)
 
 }
-	
 
 
-func InfluxConnection() influxdb2.Client {
-	var token = GetEnvVariable("INFLUXDB_TOKEN")
+func GetActivity(activity_id string, db *sql.DB) JSON{
 
-	fmt.Print("Attempting to connect to influxdb... ")
+	var activity JSON
 
-	client := influxdb2.NewClient("http://localhost:8086", token)
+	query := fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM running_session WHERE activity_id = %s LIMIT 1) activity", activity_id)
 
-	fmt.Println("connected to influxdb.")
+	err := db.QueryRow(query).Scan(&activity)
 
-	return client
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	return activity
 }
 
 
-func GetRecord(client influxdb2.Client, bucket string, activityName int64, startTime string, endTime string) {
-	const org = "user"
+func ServeRecord(w http.ResponseWriter, r *http.Request, db *sql.DB, client influxdb2.Client) {
+
+	vars := mux.Vars(r)
+
+	activity_id := vars["id"]
+
+	activity := GetActivity(activity_id, db)
 
 	q := fmt.Sprintf(`
-        from(bucket: %s) 
+        from(bucket: "%s") 
             |> range(start: time(v: %s), stop: time(v: %s)) 
-            |> filter(fn: (r) => r["_measurement"] == %s) 
-	`, bucket, startTime, endTime, activityName)
+            |> filter(fn: (r) => r["_measurement"] == "%s") 
+	`, "records", activity["start_time"].(string), activity["end_time"].(string), activity["activity_name"].(string))
 
+	fmt.Println(q)
+
+	const org = "user"
 	queryAPI := client.QueryAPI(org)
 
 	result, err := queryAPI.Query(context.Background(), q)
@@ -141,6 +166,14 @@ func GetRecord(client influxdb2.Client, bucket string, activityName int64, start
 			if result.TableChanged() {
 				fmt.Printf("table: %s\n", result.TableMetadata().String())
 			}
+
+			// TODO need to have something like:
+
+				// "speed": [
+					//	"timestamp": "value",
+					//	"timestamp": "value"
+				//	]
+
 			fmt.Printf("ts: %v field: %v value: %v\n", result.Record().Time(), result.Record().Field(), result.Record().Value())
 		}
 		if result.Err() != nil {
@@ -152,13 +185,17 @@ func GetRecord(client influxdb2.Client, bucket string, activityName int64, start
 }
 
 
-func HandleRequests(db *sql.DB) {
+func HandleRequests(db *sql.DB, client influxdb2.Client) {
 	fmt.Println("Starting gotracker router")
 
 	router := mux.NewRouter().StrictSlash(true)
 
 	router.HandleFunc("/activity/latest/", func(w http.ResponseWriter, r *http.Request) {
 		ServeLatestActivity(w, r, db)
+	})
+
+	router.HandleFunc("/activity/{type}/{id}/", func(w http.ResponseWriter, r *http.Request) {
+		ServeRecord(w, r, db, client)
 	})
 
 	http.ListenAndServe(":8080", router)

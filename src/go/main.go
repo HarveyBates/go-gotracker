@@ -11,7 +11,7 @@ func main() {
 	db := PostgresConnection()
 
 	//// API Rotuer
-	HandleRequests(db)
+	HandleRequests(db, client)
 
 	defer client.Close()
 	defer db.Close()
