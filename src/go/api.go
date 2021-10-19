@@ -161,27 +161,61 @@ func ServeRecord(w http.ResponseWriter, r *http.Request, db *sql.DB, client infl
 
 	result, err := queryAPI.Query(context.Background(), q)
 
+	// Get record field
+	jsonResponse := make(map[string][]map[time.Time]interface{})
 	if err == nil {
+		var fields []string
+		values := make(map[time.Time]interface{})
 		for result.Next() {
-			if result.TableChanged() {
-				fmt.Printf("table: %s\n", result.TableMetadata().String())
+			fieldChange := false
+			currentField := result.Record().Field()
+			if !Contains(fields, currentField) {
+				fields = append(fields, currentField)
+				fieldChange = true
 			}
-
-			// TODO need to have something like:
-
-				// "speed": [
-					//	"timestamp": "value",
-					//	"timestamp": "value"
-				//	]
-
-			fmt.Printf("ts: %v field: %v value: %v\n", result.Record().Time(), result.Record().Field(), result.Record().Value())
-		}
-		if result.Err() != nil {
-			fmt.Printf("query parsing error: %s\n", result.Err().Error())
-		}
+			currentValue := result.Record().Value()
+			currentTs := result.Record().Time()
+			if (!fieldChange) {
+				// Add value with timestamp pair
+				values[currentTs] = currentValue
+			} else {
+				jsonResponse[fields[len(fields)-1]] = append(jsonResponse[fields[len(fields)-1]], values)
+				values[currentTs] = currentValue
+				fmt.Println("Field changed", currentField)	
+			}
+		}	
+		fmt.Println(jsonResponse["Cadence"].(interface{}))
+//	if err == nil {
+//		for result.Next() {
+//			if result.TableChanged() {
+//				fmt.Printf("table: %s\n", result.TableMetadata().String())
+//			}
+//
+//			// TODO need to have something like:
+//
+//				// "speed": [
+//					//	"timestamp": "value",
+//					//	"timestamp": "value"
+//				//	]
+//
+//			fmt.Printf("ts: %v field: %v value: %v\n", result.Record().Time(), result.Record().Field(), result.Record().Value())
+//		}
+//		if result.Err() != nil {
+//			fmt.Printf("query parsing error: %s\n", result.Err().Error())
+//		}
+	fmt.Println(fields)
 	} else {
 		log.Fatal(err)
 	}
+}
+
+func Contains(arr []string, str string) bool {
+	for _, a := range arr {
+		if a == str {
+			return true
+		}
+	}
+	return false
 }
 
 
