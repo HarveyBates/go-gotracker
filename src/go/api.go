@@ -184,7 +184,7 @@ func ServeRecord(w http.ResponseWriter, r *http.Request, db *sql.DB, client infl
 				fmt.Println("Field changed", currentField)	
 			}
 		}	
-		fmt.Println(jsonResponse["Cadence"].(interface{}))
+		//fmt.Println(jsonResponse["Cadence"].(interface{}))
 //	if err == nil {
 //		for result.Next() {
 //			if result.TableChanged() {
