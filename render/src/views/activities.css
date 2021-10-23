@@ -1,26 +1,51 @@
-.main-container{
+.activity-page{
 	height: auto;
 	width: auto;
 	padding: 1rem;
 	margin: 1rem;
 }
 
-.chart-map {
+.main-chart-summary{
 	display: flex;
 	background: white;
-	flex-wrap: wrap;
-	flex-direction: row;
-	min-height: 65vh;
+	flex-flow: column;
+	jusitfy-content: space-evenly;
 	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+	min-height: 65vh;
 	padding: 1rem;
 	margin: 1rem;
 	border-radius: 1rem;
 }
+
+.activity-summary{
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+	justify-content: flex-start;
+}
+
+.summary-box{
+	display: inline-block;
+	text-align: left;
+	padding: 10px 30px 10px 10px;
+	margin: 0.5rem;
+	box-shadow: 0 4px 8px 0 rgba(0, 0, 0, 0.2);
+	border-radius: 10px;
+	overflow: hidden;
+}
+.summary-box h4 {
+	margin: 0;
+	padding: 0;
+}
+.summary-box h5 {
+	color: grey;
+	margin: 0;
+	padding: 0;
+}
 	
 .chart{
-	height: inherit;
+	min-height: 500px;
 	width: 100%;
-	justify-content: space-around;
 	align-items: center;
 }
 
