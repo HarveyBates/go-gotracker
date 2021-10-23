@@ -1,9 +1,9 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
-import {InfluxDB, FluxTableMetaData} from '@influxdata/influxdb-client'
+import {InfluxDB} from '@influxdata/influxdb-client'
 import './activities.css';
-import moment from 'moment';
 import Map from './map';
+
 
 class Activity extends React.Component {
 	constructor() {
@@ -11,6 +11,7 @@ class Activity extends React.Component {
 		this.state = {
 			activity: [],
 			records: [],
+			laps: [],
 			activity_name: "", 
 			activity_id: "",
 			total_distance: 0,
@@ -20,6 +21,7 @@ class Activity extends React.Component {
 			max_running_cadence: 0,
 			avg_speed: 0,
 			max_speed: 0,
+			num_laps: 0,
 			start_time: "",
 			end_time: "",
 			sport: "",
@@ -41,11 +43,12 @@ class Activity extends React.Component {
 
 			// Get records (time-series of an activity)
 			const client = new InfluxDB({url: "http://localhost:8086", token: influxToken}).getQueryApi("user");
-			const query = `from(bucket: "records") |> range(start: time(v: ${data.start_time}), stop: time(v: ${data.end_time})) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}") |> aggregateWindow(every: ${this.state.smoothing}, fn: mean)`
+			const recordsQuery = `from(bucket: "records") |> range(start: time(v: ${data.start_time}), stop: time(v: ${data.end_time})) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}") |> aggregateWindow(every: ${this.state.smoothing}, fn: mean)`
 
 			const handleState = () => {
 				this.setState({	activity: data, 
 								records: records,
+								laps: laps,
 								activity_name: data.activity_name, 
 								activity_id: data.activity_id,
 								total_distance: data.total_distance,
@@ -55,13 +58,14 @@ class Activity extends React.Component {
 								max_running_cadence: data.max_running_cadence,
 								avg_speed: data.avg_speed,
 								max_speed: data.max_speed,
+								num_laps: data.num_laps,
 								start_time: data.start_time,
 								end_time: data.end_time,
 								sport: data.sport });
 			}
 
 			var records = [];
-			client.queryRows(query, {
+			client.queryRows(recordsQuery, {
 				next(row, tableMeta) {
 					var record = tableMeta.toObject(row)
 					records.push(record);
@@ -74,8 +78,12 @@ class Activity extends React.Component {
 				},
 			})
 
+			// Add a bit of time to get the last data point
+			// By default end time is excluded from the query
+			var endDate = new Date(data.end_time);
+			var endDate = (endDate.getTime() + 1000000) / 1000;
 			// Get laps 
-			const lapsQuery = `from(bucket: "laps") |> range(start: time(v: ${data.start_time}), stop: time(v: ${data.end_time})) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}")`
+			const lapsQuery = `from(bucket: "laps") |> range(start: time(v: ${data.start_time}), stop: ${endDate}) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}")`
 
 			var laps = [];
 			client.queryRows(lapsQuery, {
@@ -87,10 +95,9 @@ class Activity extends React.Component {
 					console.error(error)
 				},
 				complete() {
-					console.log(laps);
+					handleState();
 				},
 			})
-
 
 		} catch (error) {
 			console.log(error);
@@ -180,6 +187,7 @@ class Activity extends React.Component {
 									areaStyle: {},
 									z: 0,
 									type: "line",
+									smooth: true,
 									symbol: "none",
 									yAxisIndex: 2,
 									data: arr
@@ -190,6 +198,7 @@ class Activity extends React.Component {
 									name: currentField,
 									color: 'rgba(240, 52, 52, 1)',
 									type: "line",
+									smooth: true,
 									symbol: "none",
 									data: arr
 								});
@@ -199,6 +208,7 @@ class Activity extends React.Component {
 									name: currentField,
 									color: 'rgba(44, 130, 201, 1)',
 									type: "line",
+									smooth: true,
 									symbol: "none",
 									data: arr
 								});
@@ -208,6 +218,7 @@ class Activity extends React.Component {
 									name: currentField,
 									color: 'rgba(1, 152, 117, 1)',
 									type: "line",
+									smooth: true,
 									symbol: "none",
 									yAxisIndex: 1,
 									data: arr
@@ -216,6 +227,7 @@ class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									type: "line",
+									smooth: true,
 									symbol: "none",
 									data: arr
 								});
@@ -263,7 +275,74 @@ class Activity extends React.Component {
 					}
 					totalRows++;
 				}
+
+
+				// Handle laps
+				var minDate = new Date(0, 0, 0, 0, 6, 0, 0);
+				var excludeLapFields = ["sport", "sub_sport", "lap_trigger", "event_type", "event",
+										"start_position_lat", "start_position_long", 
+										"end_position_lat", "end_position_long", "message_index",
+										"avg_fractional_cadence", "max_fractional_cadence",
+										"enhanced_avg_speed", "enhanced_max_speed"]
+				var lapFields = [];
+				totalRows = 0;
+				currentField = this.state.laps[0]._field;
+				var lapArr = [];
+				var lapSeries = [];
+				var lapIndex = 1;
+				for (let i in this.state.laps){
+					var row = this.state.laps[i];
+					if (currentField !== row._field || totalRows === (this.state.laps.length - 1)) {
+						if(excludeLapFields.indexOf(currentField) === -1 && 
+							getAverage(lapArr) !== 0 &&
+							lapFields.indexOf(row._field) === -1){
+							lapFields.push(row._field);
+							if (currentField === "avg_speed"){
+								lapArr.push([lapIndex, minDate]);
+								lapSeries.push({
+									name: currentField,
+									type: "bar",
+									barWidth: "95%",
+									label: {
+										show: true,
+									},
+									data: lapArr
+								});
+							} else {
+								lapSeries.push({
+									name: currentField,
+									type: "bar",
+									barWidth: "95%",
+									label: {
+										show: true,
+									},
+									data: lapArr
+								});
+							}
+						}
+						lapIndex = 1;
+						currentField = row._field;
+						lapArr = [];
+					} 
+					if (row._field === "avg_speed") {
+						var pace = getPace(row._value)
+						var mins = pace.slice(0, 2);
+						var secs = pace.slice(3);
+						var datePace = new Date(0, 0, 0, 0, mins, secs, 0);
+						lapArr.push([lapIndex, datePace]);
+					} else{
+						lapArr.push([lapIndex, row._value]);
+					}
+					if (excludeLapFields.indexOf(row._field) === -1) {
+						lapIndex++;
+					} else {
+						lapIndex = 1;
+					}
+					totalRows++;
+				}
 			}
+
+			console.log(lapSeries[0].data);
 
 			const recordsOptions = {
 				xAxis: {
@@ -310,7 +389,6 @@ class Activity extends React.Component {
 					show: true,
 					right: 100,
 					feature: {
-						saveAsImage: {},
 						dataZoom: {},
 					}
 				},
@@ -322,11 +400,66 @@ class Activity extends React.Component {
 						end: 100,
 					}
 				],
-				series: series
+				series: series 
 			};
+
+			const lapsOptions = {
+				xAxis: {
+					name: "Lap",
+					nameLocation: 'center',
+					nameGap: 25,
+					min: 0,
+					max: this.state.num_laps,
+					type: 'category',
+				},
+				yAxis: {
+					type: 'time',
+					inverse: true,
+					axisLabel: {
+						formatter: '{mm}:{ss}'
+					},
+					position: 'left',
+				},
+				tooltip: {
+					show: true,
+					formatter: function (params) {
+						var date = new Date(params[0].data[1]);
+						return (
+							date.getMinutes() +
+							':' +
+							date.getSeconds()
+						);
+					},
+					trigger: 'axis',
+				},
+				toolbox: {
+					show: true,
+					right: 100,
+					feature: {
+						dataZoom: {},
+					}
+				},
+				series: lapSeries[2],	
+			};
+			
+			const map1 = lapSeries.map((lap, _) => lap.name);
+			console.log(map1);
 
 			return (
 				<div className="activity-page">
+					<div className="lap-chart-summary">
+						<div className="laps-chart">
+							<ReactECharts option={lapsOptions} 
+								theme={'macarons'} 
+								style={{height: 400, width: '100%'}}/>
+						</div>
+						<div className="lap-summary">
+							<ul>
+								{lapSeries.map((lap, _) =><li key={lap.name}>{lap.name}</li>)}
+							</ul>
+
+						</div>
+					</div>
 					<div className="main-chart-summary">
 						<div className="activity-summary">
 							<div className="summary-box">
@@ -346,14 +479,14 @@ class Activity extends React.Component {
 							</div>
 							<div className="summary-box">
 								<h4 style={{color: "rgba(44, 130, 201, 1)"}}>Cadence</h4>
-								<h4>Avg: {this.state.avg_running_cadence * 2}</h4>
-								<h5>Max: {this.state.max_running_cadence * 2}</h5>
+								<h4>Avg: {this.state.avg_running_cadence}</h4>
+								<h5>Max: {this.state.max_running_cadence}</h5>
 							</div>
 						</div>
 						<div className="chart">
 							<ReactECharts option={recordsOptions} 
 								theme={'macarons'} 
-								style={{height: 350, width: '100%'}}/>
+								style={{height: 500, width: '100%'}}/>
 						</div>
 					</div>
 					<table className="activity-table">

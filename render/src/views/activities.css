@@ -11,7 +11,7 @@
 	flex-flow: column;
 	jusitfy-content: space-evenly;
 	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
-	min-height: 65vh;
+	min-height: 600px;
 	padding: 1rem;
 	margin: 1rem;
 	border-radius: 1rem;
@@ -44,8 +44,35 @@
 }
 	
 .chart{
-	min-height: 500px;
+	height: 500px;
 	width: 100%;
+	align-items: center;
+}
+
+.lap-chart-summary{
+	display: flex;
+	background: white;
+	flex-direction: column;
+	flex-flow: row;
+	jusitfy-content: space-evenly;
+	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+	min-height: 400px;
+	width: 100%;
+	padding: 1rem;
+	margin: 1rem;
+	border-radius: 1rem;
+}
+
+.laps-chart{
+	height: 200px;
+	width: 50%;
+	align-items: center;
+}
+
+.lap-summary{
+	color: black;
+	height: 200px;
+	width: 50%;
 	align-items: center;
 }
 
