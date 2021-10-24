@@ -446,7 +446,31 @@ class Activity extends React.Component {
 				},
 				series: lapSeries[2],	
 			};
-			
+
+			const lapSummary = () => {
+				var laps = []
+				for (let i = 0; i < this.state.num_laps; i++){
+					var lap = []
+					for (let field in lapSeries){
+						if (lapSeries[field].name !== "avg_speed") {
+							lap.push({name: lapSeries[field].name, 
+										value: lapSeries[field].data[i][1]});
+						}
+					}
+					laps.push(lap);
+				}
+
+				return (
+					<ul className="laps">
+						{laps.map((lap) => (
+								<li key={lap.name} className="lap">{lap.map((avg, _) => 
+										<p>{avg.name}: {avg.value}</p>
+						)}</li>
+						))}
+					</ul>
+				);
+			};
+
 			return (
 				<div className="activity-page">
 					<div className="lap-chart-summary">
@@ -456,12 +480,7 @@ class Activity extends React.Component {
 								style={{height: 400, width: '100%'}}/>
 						</div>
 						<div className="laps-summary">
-							<ul className="laps">
-								<li className="lap">Lap #1</li>
-								<li className="lap">Lap #2</li>
-								<li className="lap">Lap #3</li>
-								<li className="lap">Lap #4</li>
-							</ul>
+							{lapSummary()}
 						</div>
 					</div>
 					<div className="main-chart-summary">
