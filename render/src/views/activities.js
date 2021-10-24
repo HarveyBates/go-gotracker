@@ -1,5 +1,7 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
+import { graphic } from 'echarts';
+import { GraphicComponent } from "echarts/components";
 import {InfluxDB} from '@influxdata/influxdb-client'
 import './activities.css';
 import Map from './map';
@@ -309,6 +311,12 @@ class Activity extends React.Component {
 									label: {
 										show: true,
 									},
+									itemStyle: {
+										color: new graphic.LinearGradient(0, 0, 0, 1, [
+											{ offset: 0, color: '#297EA6' },
+											{ offset: 1, color: '#002c4d' }
+										])
+									},
 									data: lapArr
 								});
 							} else {
@@ -344,8 +352,6 @@ class Activity extends React.Component {
 					totalRows++;
 				}
 			}
-
-			console.log(lapSeries[0].data);
 
 			const recordsOptions = {
 				xAxis: {
@@ -447,27 +453,52 @@ class Activity extends React.Component {
 				series: lapSeries[2],	
 			};
 
+
+			function formatWord(str) {
+				const titleCase = str
+					.toLowerCase()
+					.replaceAll("_", " ")
+					.split(" ")
+					.map(word => {
+						return word.charAt(0).toUpperCase() + word.slice(1);
+					})
+					.join(" ");
+
+				return titleCase;
+			}
+
 			const lapSummary = () => {
 				var laps = []
 				for (let i = 0; i < this.state.num_laps; i++){
 					var lap = []
 					for (let field in lapSeries){
-						if (lapSeries[field].name !== "avg_speed") {
-							lap.push({name: lapSeries[field].name, 
+						if (lapSeries[field].name === "avg_speed") {
+							var name = formatWord(lapSeries[field].name);
+							var pace = lapSeries[field].data[i][1];
+							pace = pace.getMinutes() + ':' + pace.getSeconds()
+							lap.push({name: name, value: pace});
+						} else {
+							var name = formatWord(lapSeries[field].name);
+							lap.push({name: name, 
 										value: lapSeries[field].data[i][1]});
 						}
 					}
-					laps.push(lap);
+					laps.push({number: i + 1, data: lap});
 				}
 
+
 				return (
-					<ul className="laps">
+					<div className="laps">
 						{laps.map((lap) => (
-								<li key={lap.name} className="lap">{lap.map((avg, _) => 
-										<p>{avg.name}: {avg.value}</p>
-						)}</li>
+							<div className="lap">
+								<h3>Lap #{lap.number}</h3>
+								<ul>
+									<li key={lap.number}>{lap.data.map((avg, _) => 
+											<p key={avg.name}>{avg.name}: {avg.value}</p>)}</li>
+								</ul>
+							</div>
 						))}
-					</ul>
+					</div>
 				);
 			};
 
