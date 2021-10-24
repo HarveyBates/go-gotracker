@@ -264,7 +264,10 @@ class Activity extends React.Component {
 						diff = msConversion(diff)
 						if (currentField === "speed"){
 							var pace = getPace(row._value)
-							arr.push([diff, pace]);
+							var mins = pace.slice(0, 2);
+							var secs = pace.slice(3);
+							var datePace = new Date(0, 0, 0, 0, mins, secs, 0);
+							arr.push([diff, datePace]);
 						} 
 						else if (currentField === "altitude" || currentField === "heart_rate"){
 							arr.push([diff, Math.round(row._value)]);
@@ -357,12 +360,14 @@ class Activity extends React.Component {
 						position: 'left'
 					},
 					{
-						type: 'category',
+						type: 'time',
 						position: 'left',
+						inverse: true,
+						axisLabel: {
+							formatter: '{mm}:{ss}'
+						},
 						offset: 50,
 						name: "Pace (min/km)",
-						min: getPace(minPace),
-						max: maxPace
 					},
 					{
 						type: 'value',
@@ -442,9 +447,6 @@ class Activity extends React.Component {
 				series: lapSeries[2],	
 			};
 			
-			const map1 = lapSeries.map((lap, _) => lap.name);
-			console.log(map1);
-
 			return (
 				<div className="activity-page">
 					<div className="lap-chart-summary">
@@ -453,11 +455,13 @@ class Activity extends React.Component {
 								theme={'macarons'} 
 								style={{height: 400, width: '100%'}}/>
 						</div>
-						<div className="lap-summary">
-							<ul>
-								{lapSeries.map((lap, _) =><li key={lap.name}>{lap.name}</li>)}
+						<div className="laps-summary">
+							<ul className="laps">
+								<li className="lap">Lap #1</li>
+								<li className="lap">Lap #2</li>
+								<li className="lap">Lap #3</li>
+								<li className="lap">Lap #4</li>
 							</ul>
-
 						</div>
 					</div>
 					<div className="main-chart-summary">
