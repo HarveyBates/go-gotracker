@@ -283,12 +283,12 @@ class Activity extends React.Component {
 
 
 				// Handle laps
-				var minDate = new Date(0, 0, 0, 0, 6, 0, 0);
+				var minPace = new Date(0, 0, 0, 0, 6, 0, 0); // Paces are handled as dates
 				var excludeLapFields = ["sport", "sub_sport", "lap_trigger", "event_type", "event",
 										"start_position_lat", "start_position_long", 
 										"end_position_lat", "end_position_long", "message_index",
 										"avg_fractional_cadence", "max_fractional_cadence",
-										"enhanced_avg_speed", "enhanced_max_speed"]
+										"enhanced_avg_speed", "enhanced_max_speed", "start_time"]
 				var lapFields = [];
 				totalRows = 0;
 				currentField = this.state.laps[0]._field;
@@ -303,23 +303,40 @@ class Activity extends React.Component {
 							lapFields.indexOf(row._field) === -1){
 							lapFields.push(row._field);
 							if (currentField === "avg_speed"){
-								lapArr.push([lapIndex, minDate]);
+								lapArr.push([lapIndex, minPace])
 								lapSeries.push({
 									name: currentField,
 									type: "bar",
-									barWidth: "95%",
+									barWidth: "30%",
 									label: {
 										show: true,
 									},
 									itemStyle: {
 										color: new graphic.LinearGradient(0, 0, 0, 1, [
-											{ offset: 0, color: '#297EA6' },
-											{ offset: 1, color: '#002c4d' }
+											{ offset: 0, color: '#002c4d' },
+											{ offset: 1, color: '#297EA6' }
 										])
 									},
 									data: lapArr
 								});
-							} else {
+							} 
+							else if (currentField === "avg_heart_rate") {
+								lapArr.push([lapIndex, 0]);
+								lapSeries.push({
+									name: currentField,
+									type: "bar",
+									barWidth: "30%",
+									yAxisIndex: 1,
+									itemStyle: {
+										color: new graphic.LinearGradient(0, 0, 0, 1, [
+											{ offset: 0, color: '#dd1a1a' },
+											{ offset: 1, color: '#d15959' }
+										])
+									},
+									data: lapArr
+								});
+							}
+							else {
 								lapSeries.push({
 									name: currentField,
 									type: "bar",
@@ -341,6 +358,10 @@ class Activity extends React.Component {
 						var secs = pace.slice(3);
 						var datePace = new Date(0, 0, 0, 0, mins, secs, 0);
 						lapArr.push([lapIndex, datePace]);
+					} 
+					else if(row._field === "max_speed"){
+						var pace = getPace(row._value);
+						lapArr.push([lapIndex, pace]);
 					} else{
 						lapArr.push([lapIndex, row._value]);
 					}
@@ -423,22 +444,35 @@ class Activity extends React.Component {
 					max: this.state.num_laps,
 					type: 'category',
 				},
-				yAxis: {
+				yAxis: [
+				{
 					type: 'time',
 					inverse: true,
 					axisLabel: {
 						formatter: '{mm}:{ss}'
 					},
 					position: 'left',
+					name: "Avg Pace",
+					nameLocation: "start"
 				},
+				{
+					type: 'value',
+					position: 'right',
+					name: "Avg Heart Rate"
+				}
+				],
 				tooltip: {
 					show: true,
 					formatter: function (params) {
 						var date = new Date(params[0].data[1]);
+						var pace = date.getMinutes() + ":" + date.getSeconds();
+						try {
+							var hr = params[1].data[1];
+						} catch {
+							var hr = 0;
+						}
 						return (
-							date.getMinutes() +
-							':' +
-							date.getSeconds()
+							pace + "\n" + hr
 						);
 					},
 					trigger: 'axis',
@@ -450,8 +484,12 @@ class Activity extends React.Component {
 						dataZoom: {},
 					}
 				},
-				series: lapSeries[2],	
+				series: [lapSeries[2],
+						lapSeries[0]
+				]
 			};
+
+			console.log(lapSeries);
 
 
 			function formatWord(str) {
