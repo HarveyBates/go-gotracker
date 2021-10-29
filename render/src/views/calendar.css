@@ -1,0 +1,16 @@
+.calendar{
+	margin: 1rem;
+}
+
+
+@media only screen and (max-width: 800px){
+	.calendar{
+		margin-left: 1rem;
+	}
+}
+
+@media only screen and (min-width: 800px){
+	.calendar {
+		margin-left: 4rem;
+	}
+}

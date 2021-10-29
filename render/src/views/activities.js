@@ -6,7 +6,7 @@ import './activities.css';
 import Map from './map';
 
 
-class Activity extends React.Component {
+export default class Activity extends React.Component {
 	constructor() {
 		super();
 		this.state = {
@@ -471,7 +471,7 @@ class Activity extends React.Component {
 							var hr = 0;
 						}
 						return (
-							pace + "\n" + hr
+							"Pace: <b>" + pace + "</b><br>Heart Rate: <b>" + hr + "</b>"
 						);
 					},
 					trigger: 'axis',
@@ -601,6 +601,4 @@ class Activity extends React.Component {
 		}
 	}
 };
-
-export default Activity;
 

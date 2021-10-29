@@ -4,6 +4,8 @@ import { BrowserRouter as Router, Route, Switch, Link, withRouter } from "react-
 
 // User imports 
 import "./navbar.css";
+import Activities from "../views/activities";
+import Calendar from "../views/calendar";
 
 // Logo / icon imports
 import { library } from '@fortawesome/fontawesome-svg-core';
@@ -20,11 +22,11 @@ export class Navbar extends React.Component {
 					<Link to="#" className="navitem">
 						<FontAwesomeIcon className="navimg" icon="fa-solid fa-home"/>
 					</Link>
-					<Link to="#" className="navitem">
+					<Link to="/calendar" className="navitem">
 						<FontAwesomeIcon className="navimg" icon="fa-solid fa-calendar-days"/>
 					</Link>
 
-					<Link className="navitem">
+					<Link to="/activities" className="navitem">
 						<FontAwesomeIcon className="navimg" icon="fa-solid fa-heart-pulse"/>
 					</Link>
 
@@ -37,6 +39,14 @@ export class Navbar extends React.Component {
 					</Link>
 				</ul>
 			</nav>
+				<Switch>
+					<Route exact path="/activities">
+						<Activities/>
+					</Route>
+					<Route exact path="/calendar">
+						<Calendar />
+					</Route>
+				</Switch>
 			</Router>
 		);
 	}
