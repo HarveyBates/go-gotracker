@@ -1,7 +1,6 @@
 import React from 'react';
 import ReactECharts from 'echarts-for-react';
 import { graphic } from 'echarts';
-import { GraphicComponent } from "echarts/components";
 import {InfluxDB} from '@influxdata/influxdb-client'
 import './activities.css';
 import Map from './map';
@@ -313,8 +312,8 @@ class Activity extends React.Component {
 									},
 									itemStyle: {
 										color: new graphic.LinearGradient(0, 0, 0, 1, [
-											{ offset: 0, color: '#002c4d' },
-											{ offset: 1, color: '#297EA6' }
+											{ offset: 0, color: '#0bab64' },
+											{ offset: 1, color: '#3bb78f' }
 										])
 									},
 									data: lapArr
@@ -390,16 +389,15 @@ class Activity extends React.Component {
 						type: 'time',
 						position: 'left',
 						inverse: true,
+						offset: 25,
 						axisLabel: {
+							color: 'rgba(1, 152, 117, 1)',
 							formatter: '{mm}:{ss}'
-						},
-						offset: 50,
-						name: "Pace (min/km)",
+						}
 					},
 					{
 						type: 'value',
 						position: 'right',
-						name: "Altitude (m)",
 						splitLine: {
 							show: false,
 						},
@@ -449,16 +447,17 @@ class Activity extends React.Component {
 					type: 'time',
 					inverse: true,
 					axisLabel: {
-						formatter: '{mm}:{ss}'
+						formatter: '{mm}:{ss}',
+						color: 'rgba(1, 152, 117, 1)'
 					},
 					position: 'left',
-					name: "Avg Pace",
-					nameLocation: "start"
 				},
 				{
 					type: 'value',
 					position: 'right',
-					name: "Avg Heart Rate"
+					axisLabel: {
+						color: 'rgba(240, 52, 52, 1)',
+					},
 				}
 				],
 				tooltip: {
