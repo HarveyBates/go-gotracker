@@ -495,6 +495,9 @@ export default class Activity extends React.Component {
 				const titleCase = str
 					.toLowerCase()
 					.replaceAll("_", " ")
+					.replaceAll("running", "")
+					.replaceAll("total", "")
+					.replaceAll("speed", "pace")
 					.split(" ")
 					.map(word => {
 						return word.charAt(0).toUpperCase() + word.slice(1);
@@ -506,8 +509,10 @@ export default class Activity extends React.Component {
 
 			const lapSummary = () => {
 				var laps = []
+				var addLaps = false;
 				for (let i = 0; i < this.state.num_laps; i++){
 					var lap = []
+					lap.push({name: "Lap Num.", value: i + 1});
 					for (let field in lapSeries){
 						if (lapSeries[field].name === "avg_speed") {
 							var name = formatWord(lapSeries[field].name);
@@ -523,32 +528,43 @@ export default class Activity extends React.Component {
 					laps.push({number: i + 1, data: lap});
 				}
 
-
 				return (
-					<div className="laps">
-						{laps.map((lap) => (
-							<div className="lap">
-								<h3>Lap #{lap.number}</h3>
-								<ul>
-									<li key={lap.number}>{lap.data.map((avg, _) => 
-											<p key={avg.name}>{avg.name}: {avg.value}</p>)}</li>
-								</ul>
-							</div>
-						))}
-					</div>
+					<table className="activity-table">
+						<thead>
+							<tr key="lap-table-head">
+								{laps[0].data.map((info, _) => {
+									return <th key={info.name}>{info.name}</th>
+								})}
+							</tr>
+						</thead>
+						<tbody>
+							{laps.map((lap) => {
+								return (<tr key={lap.name}>
+									{lap.data.map((info, _) => {
+										return <td key={lap.name + info.name}>{info.value}</td>
+									})}
+								</tr>)
+							})}
+						</tbody>
+					</table>
 				);
 			};
 
 			return (
 				<div className="activity-page">
 					<div className="lap-chart-summary">
-						<div className="laps-chart">
-							<ReactECharts option={lapsOptions} 
-								theme={'macarons'} 
-								style={{height: 400, width: '100%'}}/>
+						<div className="section-head">
+							<h3>Laps</h3>
 						</div>
-						<div className="laps-summary">
-							{lapSummary()}
+						<div className="lap-chart-section">
+							<div className="laps-chart">
+								<ReactECharts option={lapsOptions} 
+									theme={'macarons'} 
+									style={{height: 400, width: '100%'}}/>
+							</div>
+							<div className="laps-summary">
+								{lapSummary()}
+							</div>
 						</div>
 					</div>
 					<div className="main-chart-summary">
@@ -580,22 +596,6 @@ export default class Activity extends React.Component {
 								style={{height: 500, width: '100%'}}/>
 						</div>
 					</div>
-					<table className="activity-table">
-						<thead>
-							<tr>
-								<th>Key</th>
-								<th>Value</th>
-							</tr>
-						</thead>
-						<tbody>{Object.keys(this.state.activity).map((key, i) => (
-								<tr key = {i}>
-									<td>{key}</td>
-									<td>{this.state.activity[key]}</td>
-								</tr>
-							)
-							)}
-						</tbody>
-					</table>
 				</div>
 			);
 		}

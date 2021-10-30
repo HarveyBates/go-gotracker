@@ -61,28 +61,44 @@
 	align-items: center;
 }
 
-.lap-chart-summary{
+.lap-chart-summary {
+	background: white;
+	jusitfy-content: space-evenly;
+	min-height: 400px;
+}
+
+.section-head{
+	background: white;
+	padding-bottom: 5px;
+	padding-top: 10px;
+	padding-left: 1rem;
+	text-align: left;
+}
+.section-head h3 {
+	margin: 0;
+	color: black;
+	font-weight: normal;
+}
+
+.lap-chart-section{
 	display: flex;
 	background: white;
-	flex-direction: column;
-	flex-flow: row;
-	jusitfy-content: space-evenly;
-	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+	flex-direction: row;
+	flex-flow: column;
 	min-height: 400px;
 	padding: 1rem;
 	margin: 1rem;
-	border-radius: 1rem;
 }
 
 .laps-chart{
 	display: flex;
-	width: 50%;
+	width: 100%;
 	justify-content: center;
 	align-items: center;
 }
 
 .laps-summary{
-	width: 50%;
+	width: 100%;
 }
 
 .laps{
@@ -100,8 +116,8 @@
 	/*float: left;*/
 	background: white;
 	font-size: 12px;
-	max-width: 40%;
 	min-width: 250px;
+	max-width: 300px;
 	padding: .75rem;
 	margin-bottom: 2rem;
 	border: 0;
@@ -121,16 +137,15 @@
 }
 
 .activity-table{
-	width: 75%;
-	border-collapse: collapse;
-	margin: auto auto;
-	min-width: 400px;
+	display: block;
 	box-shadow: 0 0 20px rgba(0, 0, 0, 0.15);
+	overflow: auto;
 }
 .activity-table thead tr {
 	backgrond-color: #009879;
 	color: black;
 	text-align: left;
+	white-space: nowrap;
 }
 .activity-table th, 
 .activity-table td {
@@ -139,10 +154,10 @@
 .activity-table tbody tr {
 	border-bottom: 1px solid #dddddd;
 }
-.acitivty-table tbody tr:nth-of-type(even){
+.activity-table tbody tr:nth-of-type(even){
 	background-color: #f3f3f3;
 }
-.activity-table tbody tr.active-row {
-	font-weight: bold;
-	color: #009879;
+.activity-table>tbody>tr.active>td {
+  background: #123456;
+  color: #fff;
 }
