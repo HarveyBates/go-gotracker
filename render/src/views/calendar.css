@@ -3,6 +3,86 @@
 }
 
 
+/* Bike Calendar Entries */
+.bike-cal-entry {
+	width: 100%;
+	margin-top: 0;
+	text-align: left;
+}
+
+.bike-entry-head {
+	background: #ffb703;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bike-entry-body {
+	display: flex;
+	flex-direction: column;
+	background: #adb5bd;
+	color: black;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Run Calendar Entries */
+.run-cal-entry {
+	width: 100%;
+	margin-top: 0;
+	text-align: left;
+}	
+
+.run-entry-head {
+	background: #2b9348;
+	color: white;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.run-entry-body {
+	display: flex;
+	flex-direction: column;
+	background: #adb5bd;
+	color: black;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+/* Swim Calendar Entries */
+.swim-cal-entry {
+	width: 100%;
+	margin-top: 0;
+	text-align: left;
+}	
+
+.swim-entry-head {
+	background: #0077b6;
+	color: white;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.swim-entry-body {
+	display: flex;
+	flex-direction: column;
+	background: #adb5bd;
+	color: black;
+	padding: 3px 10px 3px 10px;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
 @media only screen and (max-width: 800px){
 	.calendar{
 		margin-left: 1rem;

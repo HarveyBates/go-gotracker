@@ -6,7 +6,6 @@ import (
 	"log"
 	"os"
 	"time"
-	"context"
 	"errors"
 	"net/http"
 	"encoding/json"
@@ -124,6 +123,43 @@ func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 }
 
 
+type ListActivities struct {
+	ActivityName string `json:"activity_name"`
+	ActivityId int64 `json:"activity_id"`
+	Sport string `json:"sport"`
+	StartTime string `json:"start_time"`
+	EndTime string `json:"end_time"`
+	TotalDistance float64 `json:"total_distance"`
+}
+func ServeActivities(w http.ResponseWriter, r *http.Request, db *sql.DB){
+
+	actList := make([]ListActivities, 0)
+
+	query := fmt.Sprintf("SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM cycling_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM running_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM swimming_session")
+
+	rows, err := db.Query(query)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	var act ListActivities
+	for rows.Next() {
+		err := rows.Scan(&act.ActivityName, &act.ActivityId, &act.Sport,
+			&act.StartTime, &act.EndTime, &act.TotalDistance)
+		actList = append(actList, act)
+
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	json.NewEncoder(w).Encode(actList)
+
+	fmt.Println("[GET] Activities summary")
+}
+
+
 func GetActivity(activity_id string, db *sql.DB) JSON{
 
 	var activity JSON
@@ -140,74 +176,6 @@ func GetActivity(activity_id string, db *sql.DB) JSON{
 }
 
 
-func ServeRecord(w http.ResponseWriter, r *http.Request, db *sql.DB, client influxdb2.Client) {
-
-	vars := mux.Vars(r)
-
-	activity_id := vars["id"]
-
-	activity := GetActivity(activity_id, db)
-
-	q := fmt.Sprintf(`
-        from(bucket: "%s") 
-            |> range(start: time(v: %s), stop: time(v: %s)) 
-            |> filter(fn: (r) => r["_measurement"] == "%s") 
-	`, "records", activity["start_time"].(string), activity["end_time"].(string), activity["activity_name"].(string))
-
-	fmt.Println(q)
-
-	const org = "user"
-	queryAPI := client.QueryAPI(org)
-
-	result, err := queryAPI.Query(context.Background(), q)
-
-	// Get record field
-	jsonResponse := make(map[string][]map[time.Time]interface{})
-	if err == nil {
-		var fields []string
-		values := make(map[time.Time]interface{})
-		for result.Next() {
-			fieldChange := false
-			currentField := result.Record().Field()
-			if !Contains(fields, currentField) {
-				fields = append(fields, currentField)
-				fieldChange = true
-			}
-			currentValue := result.Record().Value()
-			currentTs := result.Record().Time()
-			if (!fieldChange) {
-				// Add value with timestamp pair
-				values[currentTs] = currentValue
-			} else {
-				jsonResponse[fields[len(fields)-1]] = append(jsonResponse[fields[len(fields)-1]], values)
-				values[currentTs] = currentValue
-				fmt.Println("Field changed", currentField)	
-			}
-		}	
-		//fmt.Println(jsonResponse["Cadence"].(interface{}))
-//	if err == nil {
-//		for result.Next() {
-//			if result.TableChanged() {
-//				fmt.Printf("table: %s\n", result.TableMetadata().String())
-//			}
-//
-//			// TODO need to have something like:
-//
-//				// "speed": [
-//					//	"timestamp": "value",
-//					//	"timestamp": "value"
-//				//	]
-//
-//			fmt.Printf("ts: %v field: %v value: %v\n", result.Record().Time(), result.Record().Field(), result.Record().Value())
-//		}
-//		if result.Err() != nil {
-//			fmt.Printf("query parsing error: %s\n", result.Err().Error())
-//		}
-	fmt.Println(fields)
-	} else {
-		log.Fatal(err)
-	}
-}
 
 func Contains(arr []string, str string) bool {
 	for _, a := range arr {
@@ -228,8 +196,8 @@ func HandleRequests(db *sql.DB, client influxdb2.Client) {
 		ServeLatestActivity(w, r, db)
 	})
 
-	router.HandleFunc("/activity/{type}/{id}/", func(w http.ResponseWriter, r *http.Request) {
-		ServeRecord(w, r, db, client)
+	router.HandleFunc("/activities/", func(w http.ResponseWriter, r *http.Request) {
+		ServeActivities(w, r, db)
 	})
 
 	http.ListenAndServe(":8080", router)
