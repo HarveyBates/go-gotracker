@@ -550,29 +550,32 @@ export default class Activity extends React.Component {
 				);
 			};
 
+			function formatTitle(str) {
+				const titleCase = str
+					.toLowerCase()
+					.replaceAll("_", " ")
+					.replace(/[0-9]/g, "")
+					.split(" ")
+					.map(word => {
+						return word.charAt(0).toUpperCase() + word.slice(1);
+					})
+					.join(" ");
+
+				return titleCase;
+			}
+
+
 			return (
 				<div className="activity-page">
-					<div className="lap-chart-summary">
-						<div className="section-head">
-							<h3>Laps</h3>
-						</div>
-						<div className="lap-chart-section">
-							<div className="laps-chart">
-								<ReactECharts option={lapsOptions} 
-									theme={'macarons'} 
-									style={{height: 400, width: '100%'}}/>
-							</div>
-							<div className="laps-summary">
-								{lapSummary()}
-							</div>
-						</div>
-					</div>
 					<div className="main-chart-summary">
+						<div className="section-head">
+							<h3>Record</h3>
+						</div>
 						<div className="activity-summary">
 							<div className="summary-box">
-								<h4>{this.state.activity_name}</h4>
-								<h5>{this.state.start_time}</h5>
-								<h5>{this.state.sport} - {(this.state.total_distance / 1000).toFixed(2)} km</h5>
+								<h4>{formatTitle(this.state.activity_name)}</h4>
+								<h5>{new Date(this.state.start_time).toDateString()}</h5>
+								<h5>{formatTitle(this.state.sport)} - {(this.state.total_distance / 1000).toFixed(2)} km</h5>
 							</div>
 							<div className="summary-box">
 								<h4 style={{color: "rgba(1, 152, 117, 1)"}}>Pace</h4>
@@ -594,6 +597,21 @@ export default class Activity extends React.Component {
 							<ReactECharts option={recordsOptions} 
 								theme={'macarons'} 
 								style={{height: 500, width: '100%'}}/>
+						</div>
+					</div>
+					<div className="lap-chart-summary">
+						<div className="section-head">
+							<h3>Laps</h3>
+						</div>
+						<div className="lap-chart-section">
+							<div className="laps-chart">
+								<ReactECharts option={lapsOptions} 
+									theme={'macarons'} 
+									style={{height: 400, width: '100%'}}/>
+							</div>
+							<div className="laps-summary">
+								{lapSummary()}
+							</div>
 						</div>
 					</div>
 				</div>

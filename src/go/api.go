@@ -130,12 +130,13 @@ type ListActivities struct {
 	StartTime string `json:"start_time"`
 	EndTime string `json:"end_time"`
 	TotalDistance float64 `json:"total_distance"`
+	ElapsedTime float64 `json:"total_elapsed_time"`
 }
 func ServeActivities(w http.ResponseWriter, r *http.Request, db *sql.DB){
 
 	actList := make([]ListActivities, 0)
 
-	query := fmt.Sprintf("SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM cycling_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM running_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance  FROM swimming_session")
+	query := fmt.Sprintf("SELECT activity_name, activity_id, sport, start_time, end_time, total_distance, total_elapsed_time FROM cycling_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance, total_elapsed_time FROM running_session UNION SELECT activity_name, activity_id, sport, start_time, end_time, total_distance, total_elapsed_time FROM swimming_session")
 
 	rows, err := db.Query(query)
 
@@ -146,7 +147,7 @@ func ServeActivities(w http.ResponseWriter, r *http.Request, db *sql.DB){
 	var act ListActivities
 	for rows.Next() {
 		err := rows.Scan(&act.ActivityName, &act.ActivityId, &act.Sport,
-			&act.StartTime, &act.EndTime, &act.TotalDistance)
+			&act.StartTime, &act.EndTime, &act.TotalDistance, &act.ElapsedTime)
 		actList = append(actList, act)
 
 		if err != nil {

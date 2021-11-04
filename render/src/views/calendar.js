@@ -68,9 +68,11 @@ export default class Calendar extends React.Component {
 				var startDt = new Date(activity.start_time);
 				events.push({
 					title: name,
+					id: activity.activity_id,
 					date: startDt,
 					sport: sport,
-					distance: distance
+					distance: distance,
+					elapsed_time: activity.total_elapsed_time
 				});
 			}
 
@@ -82,7 +84,9 @@ export default class Calendar extends React.Component {
 						initialDate="2021-01-01"
 						selectable={true}
 						events={events}  
+						weekNumbers='true'
 						eventContent={renderEventContent}
+						eventClick={handleClick}
 					/>
 				</div>
 			)
@@ -90,9 +94,23 @@ export default class Calendar extends React.Component {
 	}
 }
 
+function handleClick(eventInfo) {
+	console.log(eventInfo.event._def.publicId);
+}
+
+
+
 function renderEventContent(eventInfo) {
+
+	function elapsedToTime(sec) {
+		var date = new Date(null);
+		date.setSeconds(sec);
+		return date.toISOString().substr(11, 8);
+	}	
+
 	var props = eventInfo.event._def.extendedProps;
 	var startTime = eventInfo.timeText + "m";
+
 	if (props.sport === "cycling") {
 		return (
 			<div className="bike-cal-entry">
@@ -101,7 +119,8 @@ function renderEventContent(eventInfo) {
 				</div>
 				<div className="bike-entry-body">
 					<span><b>Distance: </b>{props.distance} km</span>
-					<span><b>Start: </b>{startTime}</span>
+					<span><b>Start Time: </b>{startTime}</span>
+					<span><b>Elapsed Time: </b>{elapsedToTime(props.elapsed_time)}</span>
 				</div>
 			</div>
 		)
@@ -114,7 +133,8 @@ function renderEventContent(eventInfo) {
 				</div>
 				<div className="run-entry-body">
 					<span><b>Distance: </b>{props.distance} km</span>
-					<span><b>Start: </b>{startTime}</span>
+					<span><b>Start Time: </b>{startTime}</span>
+					<span><b>Elapsed Time: </b>{elapsedToTime(props.elapsed_time)}</span>
 				</div>
 			</div>
 		)
@@ -127,7 +147,8 @@ function renderEventContent(eventInfo) {
 				</div>
 				<div className="swim-entry-body">
 					<span><b>Distance: </b>{props.distance} km</span>
-					<span><b>Start: </b>{startTime}</span>
+					<span><b>Start Time: </b>{startTime}</span>
+					<span><b>Elapsed Time: </b>{elapsedToTime(props.elapsed_time)}</span>
 				</div>
 			</div>
 		)
