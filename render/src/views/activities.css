@@ -23,23 +23,27 @@
 	margin: 1rem;
 	padding-bottom: 20px;
 	margin-bottom: 3rem;
+	border-radius: 2rem;
 }
 
 .activity-summary{
 	display: flex;
 	flex-direction: row;
+	flex-wrap: wrap;
 	align-items: center;
-	justify-content: flex-start;
+	justify-content: space-around;
 }
 
 .summary-box{
 	display: inline-block;
+	background: white;
 	text-align: left;
 	padding: 10px 30px 10px 10px;
 	margin: 0.5rem;
 	margin-left: 1rem;
 	box-shadow: rgba(60, 64, 67, 0.3) 0px 1px 2px 0px, rgba(60, 64, 67, 0.15) 0px 1px 3px 1px;
 	border-radius: 10px;
+	min-width: 150px;
 	overflow: hidden;
 }
 .summary-box h4 {
@@ -53,7 +57,7 @@
 }
 	
 .chart{
-	height: 500px;
+	height: 300px;
 	width: 100%;
 	align-items: center;
 }
@@ -69,16 +73,11 @@
 }
 
 .section-head{
-	background: #2b9348;
-	padding-bottom: 10px;
-	padding-top: 10px;
-	padding-left: 1rem;
-	text-align: left;
-	margin-bottom: 1rem;
+	padding: 1rem;
 }
 .section-head h3 {
 	margin: 0;
-	color: white;
+	color: #28313b;
 }
 
 .lap-chart-section{

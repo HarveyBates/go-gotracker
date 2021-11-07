@@ -1,4 +1,6 @@
 import React from 'react';
+import { withRouter } from "react-router";
+import queryString from 'query-string';
 import ReactECharts from 'echarts-for-react';
 import { graphic } from 'echarts';
 import {InfluxDB} from '@influxdata/influxdb-client'
@@ -30,12 +32,16 @@ export default class Activity extends React.Component {
 		};
 	}
 
+
 	async componentDidMount() {
 		// Initial state
 
+		const params = queryString.parse(window.location.search);
+
 		try {
+			var reqUrl = `/activity/${params.sport}/${params.activity_id}`;
 			// Get the most recent activity 
-			var response = await fetch('/activity/latest', {headers:{
+			var response = await fetch(reqUrl, {headers:{
 				"Accept": "application/json",
 				"Content-Type": "application/json"}}, {mode: 'no-cors'});
 			var data = await response.json();
@@ -107,6 +113,7 @@ export default class Activity extends React.Component {
 
 
 	render() {
+
 		if (this.state.records.length === 0) {
 			return (
 			<div>
@@ -126,7 +133,7 @@ export default class Activity extends React.Component {
 			if (this.state.sport === "running"){
 				var mainFields = ["altitude", "cadence", "heart_rate", "speed", 
 									"Cadence", "Power", "Ground Time", "Leg Spring Stiffness",
-										"Vertical Oscillation", "Form Power", "Elevation"]
+										"Vertical Oscillation", "Form Power"]
 				var currentField = this.state.records[0]._field;
 				var series = [];
 				var arr = [];
@@ -184,8 +191,11 @@ export default class Activity extends React.Component {
 							if (currentField === "altitude"){
 								series.push({
 									name: currentField,
-									color: 'rgba(190, 190, 190, 0.5)',
+									color: 'rgba(190, 190, 190, 0.6)',
 									areaStyle: {},
+									emphasis: {
+										focus: 'series'
+									},
 									z: 0,
 									type: "line",
 									smooth: true,
@@ -198,8 +208,12 @@ export default class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									color: 'rgba(240, 52, 52, 1)',
+									emphasis: {
+										focus: 'series'
+									},
 									type: "line",
 									smooth: true,
+									z: 10,
 									symbol: "none",
 									data: arr
 								});
@@ -208,6 +222,9 @@ export default class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									color: 'rgba(44, 130, 201, 1)',
+									emphasis: {
+										focus: 'series'
+									},
 									type: "line",
 									smooth: true,
 									symbol: "none",
@@ -218,6 +235,15 @@ export default class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									color: 'rgba(1, 152, 117, 1)',
+									areaStyle: {
+										color: new graphic.LinearGradient(0, 0, 0, 1, [
+											{ offset: 0, color: '#0bab64' },
+											{ offset: 0.5, color: 'rgba(255, 255, 255, 0.05)' }
+										])
+									},
+									emphasis: {
+										focus: 'series'
+									},
 									type: "line",
 									smooth: true,
 									symbol: "none",
@@ -227,6 +253,9 @@ export default class Activity extends React.Component {
 							} else {
 								series.push({
 									name: currentField,
+									emphasis: {
+										focus: 'series'
+									},
 									type: "line",
 									smooth: true,
 									symbol: "none",
@@ -430,8 +459,24 @@ export default class Activity extends React.Component {
 						end: 100,
 					}
 				],
-				series: series 
 			};
+
+
+			const plotRecords = () => {
+				let output = []
+				series.map(ser => {
+					var options = Object.assign({}, recordsOptions);
+					options.series = ser;
+					output.push(
+						<div key={ser.name} className="chart">
+							<ReactECharts option={options} 
+								theme={'macarons'} 
+								style={{height: 300, width: '100%'}}/>
+						</div>
+					);
+				});
+				return output;
+			}
 
 			const lapsOptions = {
 				xAxis: {
@@ -487,9 +532,6 @@ export default class Activity extends React.Component {
 						lapSeries[0]
 				]
 			};
-
-			console.log(lapSeries);
-
 
 			function formatWord(str) {
 				const titleCase = str
@@ -567,37 +609,33 @@ export default class Activity extends React.Component {
 
 			return (
 				<div className="activity-page">
+					<div className="activity-summary">
+						<div className="summary-box">
+							<h4>{formatTitle(this.state.activity_name)}</h4>
+							<h5>{new Date(this.state.start_time).toDateString()}</h5>
+							<h5>{formatTitle(this.state.sport)} - {(this.state.total_distance / 1000).toFixed(2)} km</h5>
+						</div>
+						<div className="summary-box">
+							<h4 style={{color: "rgba(1, 152, 117, 1)"}}>Pace</h4>
+							<h4>Avg: {avgPace}</h4>
+							<h5>Max: {maxPace}</h5>
+						</div>
+						<div className="summary-box">
+							<h4 style={{color: "rgba(240, 52, 52, 1)"}}>Heart Rate</h4>
+							<h4>Avg: {this.state.avg_heart_rate}</h4>
+							<h5>Max: {this.state.max_heart_rate}</h5>
+						</div>
+						<div className="summary-box">
+							<h4 style={{color: "rgba(44, 130, 201, 1)"}}>Cadence</h4>
+							<h4>Avg: {this.state.avg_running_cadence}</h4>
+							<h5>Max: {this.state.max_running_cadence}</h5>
+						</div>
+					</div>
 					<div className="main-chart-summary">
 						<div className="section-head">
 							<h3>Record</h3>
 						</div>
-						<div className="activity-summary">
-							<div className="summary-box">
-								<h4>{formatTitle(this.state.activity_name)}</h4>
-								<h5>{new Date(this.state.start_time).toDateString()}</h5>
-								<h5>{formatTitle(this.state.sport)} - {(this.state.total_distance / 1000).toFixed(2)} km</h5>
-							</div>
-							<div className="summary-box">
-								<h4 style={{color: "rgba(1, 152, 117, 1)"}}>Pace</h4>
-								<h4>Avg: {avgPace}</h4>
-								<h5>Max: {maxPace}</h5>
-							</div>
-							<div className="summary-box">
-								<h4 style={{color: "rgba(240, 52, 52, 1)"}}>Heart Rate</h4>
-								<h4>Avg: {this.state.avg_heart_rate}</h4>
-								<h5>Max: {this.state.max_heart_rate}</h5>
-							</div>
-							<div className="summary-box">
-								<h4 style={{color: "rgba(44, 130, 201, 1)"}}>Cadence</h4>
-								<h4>Avg: {this.state.avg_running_cadence}</h4>
-								<h5>Max: {this.state.max_running_cadence}</h5>
-							</div>
-						</div>
-						<div className="chart">
-							<ReactECharts option={recordsOptions} 
-								theme={'macarons'} 
-								style={{height: 500, width: '100%'}}/>
-						</div>
+						{plotRecords()}
 					</div>
 					<div className="lap-chart-summary">
 						<div className="section-head">

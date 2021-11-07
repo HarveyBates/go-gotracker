@@ -116,9 +116,47 @@ func ServeLatestActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
 	sport := activity["sport"].(string)
 	id := activity["activity_id"].(float64)
 	startTime := activity["start_time"].(string)
-	endTime := activity["start_time"].(string)
+	endTime := activity["end_time"].(string)
 
 	fmt.Println(sport, id, startTime, endTime)
+
+}
+
+
+func ServeRunActivity(w http.ResponseWriter, r *http.Request, db *sql.DB) {
+
+	var activity JSON
+
+	vars := mux.Vars(r)
+	
+	sport := vars["sport"]
+	activity_id := vars["activity_id"]
+
+	query := fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM running_session WHERE activity_id = '%s') activity", activity_id)
+
+	if (sport == "running") {
+		query = fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM running_session WHERE activity_id = '%s') activity", activity_id)
+	} else if (sport == "cycling"){
+		query = fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM cycling_session WHERE activity_id = '%s') activity", activity_id)
+	} else if (sport == "swimming"){
+		query = fmt.Sprintf("SELECT row_to_json(activity) FROM (SELECT * FROM swimming_session WHERE activity_id = '%s') activity", activity_id)
+	}
+
+	err := db.QueryRow(query).Scan(&activity)
+
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	json.NewEncoder(w).Encode(activity)
+
+	fmt.Print("[GET] Run activity by ID ")
+
+	id := activity["activity_id"].(float64)
+	startTime := activity["start_time"].(string)
+	endTime := activity["end_time"].(string)
+
+	fmt.Println(id, startTime, endTime)
 
 }
 
@@ -195,6 +233,10 @@ func HandleRequests(db *sql.DB, client influxdb2.Client) {
 
 	router.HandleFunc("/activity/latest/", func(w http.ResponseWriter, r *http.Request) {
 		ServeLatestActivity(w, r, db)
+	})
+
+	router.HandleFunc("/activity/{sport}/{activity_id}/", func(w http.ResponseWriter, r *http.Request) {
+		ServeRunActivity(w, r, db)
 	})
 
 	router.HandleFunc("/activities/", func(w http.ResponseWriter, r *http.Request) {

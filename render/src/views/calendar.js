@@ -1,4 +1,8 @@
 import React from 'react'
+import { useNavigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Switch, Link, withRouter } from "react-router-dom";
+import { Navigate } from "react-router-dom";
+import Activities from "../views/activities";
 import FullCalendar from '@fullcalendar/react' 
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from "@fullcalendar/interaction"
@@ -76,6 +80,15 @@ export default class Calendar extends React.Component {
 				});
 			}
 
+			function handleClick(eventInfo) {
+				var props = eventInfo.event._def
+				var sport = props.extendedProps.sport;
+
+				var activity_id = props.publicId;
+				console.log(sport, activity_id);
+				window.open(`/activities/?sport=${sport}&activity_id=${activity_id}`);
+			}
+
 			return (
 				<div className="calendar">
 					<FullCalendar
@@ -94,9 +107,6 @@ export default class Calendar extends React.Component {
 	}
 }
 
-function handleClick(eventInfo) {
-	console.log(eventInfo.event._def.publicId);
-}
 
 
 
