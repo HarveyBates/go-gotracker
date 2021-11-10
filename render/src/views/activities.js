@@ -28,7 +28,7 @@ export default class Activity extends React.Component {
 			start_time: "",
 			end_time: "",
 			sport: "",
-			smoothing: "5s"
+			smoothing: "10s"
 		};
 	}
 
@@ -192,6 +192,9 @@ export default class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									color: 'rgba(190, 190, 190, 0.6)',
+									lineStyle: {
+										width: 0
+									},
 									areaStyle: {},
 									emphasis: {
 										focus: 'series'
@@ -207,7 +210,7 @@ export default class Activity extends React.Component {
 							else if (currentField === "heart_rate"){
 								series.push({
 									name: currentField,
-									color: 'rgba(240, 52, 52, 1)',
+									color: '#FF4230',
 									emphasis: {
 										focus: 'series'
 									},
@@ -221,7 +224,7 @@ export default class Activity extends React.Component {
 							else if (currentField === "cadence"){
 								series.push({
 									name: currentField,
-									color: 'rgba(44, 130, 201, 1)',
+									color: '#FFAA31',
 									emphasis: {
 										focus: 'series'
 									},
@@ -235,12 +238,6 @@ export default class Activity extends React.Component {
 								series.push({
 									name: currentField,
 									color: 'rgba(1, 152, 117, 1)',
-									areaStyle: {
-										color: new graphic.LinearGradient(0, 0, 0, 1, [
-											{ offset: 0, color: '#0bab64' },
-											{ offset: 0.5, color: 'rgba(255, 255, 255, 0.05)' }
-										])
-									},
 									emphasis: {
 										focus: 'series'
 									},
@@ -250,18 +247,7 @@ export default class Activity extends React.Component {
 									yAxisIndex: 1,
 									data: arr
 								});
-							} else {
-								series.push({
-									name: currentField,
-									emphasis: {
-										focus: 'series'
-									},
-									type: "line",
-									smooth: true,
-									symbol: "none",
-									data: arr
-								});
-							}
+							} 
 						}
 						currentField = row._field; // Assign new field to currentField
 						arr = []; // Reset array
@@ -408,11 +394,20 @@ export default class Activity extends React.Component {
 					nameLocation: 'center',
 					nameGap: -15,
 					type: 'category',
+					axisLabel: {
+						color: 'rgba(255, 255, 255, 1)',
+					},
+					nameTextStyle: {
+						color: 'rgba(255, 255, 255, 1)'
+					}
 				},
 				yAxis: [
 					{
 						type: 'value',
-						position: 'left'
+						position: 'left',
+						axisLabel: {
+							color: 'rgba(255, 255, 255, 1)',
+						},
 					},
 					{
 						type: 'time',
@@ -430,8 +425,11 @@ export default class Activity extends React.Component {
 						splitLine: {
 							show: false,
 						},
-						min: minAlt,
-						max: maxAlt
+						axisLabel: {
+							color: 'rgba(255, 255, 255, 1)',
+						},
+						min: Math.floor(minAlt),
+						max: Math.ceil(maxAlt + (0.1*maxAlt))
 					},
 				],
 				tooltip: {
@@ -447,6 +445,9 @@ export default class Activity extends React.Component {
 				toolbox: {
 					show: true,
 					right: 100,
+					iconStyle: {
+						borderColor: '#fff',
+					},
 					feature: {
 						dataZoom: {},
 					}
@@ -454,29 +455,26 @@ export default class Activity extends React.Component {
 				dataZoom: [
 					{
 						show: true,
+						backgroundColor: '#13252A',
+						dataBackground: {
+							areaStyle: {
+								color: 'rgba(250, 0, 0, 1)',
+							},
+						},
+						selectedDataBackground: {
+							areaStyle: {
+								color: 'rgba(0, 255, 0, 1)',
+							},
+						},
+						borderColor: '#13252A',
 						realtime: true,
 						start: 0,
 						end: 100,
 					}
 				],
+				series: series
 			};
 
-
-			const plotRecords = () => {
-				let output = []
-				series.map(ser => {
-					var options = Object.assign({}, recordsOptions);
-					options.series = ser;
-					output.push(
-						<div key={ser.name} className="chart">
-							<ReactECharts option={options} 
-								theme={'macarons'} 
-								style={{height: 300, width: '100%'}}/>
-						</div>
-					);
-				});
-				return output;
-			}
 
 			const lapsOptions = {
 				xAxis: {
@@ -528,8 +526,8 @@ export default class Activity extends React.Component {
 						dataZoom: {},
 					}
 				},
-				series: [lapSeries[2],
-						lapSeries[0]
+				series: [lapSeries[3],
+						lapSeries[1]
 				]
 			};
 
@@ -635,7 +633,11 @@ export default class Activity extends React.Component {
 						<div className="section-head">
 							<h3>Record</h3>
 						</div>
-						{plotRecords()}
+						<div className="chart">
+							<ReactECharts option={recordsOptions} 
+								theme={'macarons'} 
+								style={{height: 400, width: '100%'}}/>
+						</div>
 					</div>
 					<div className="lap-chart-summary">
 						<div className="section-head">
@@ -645,7 +647,7 @@ export default class Activity extends React.Component {
 							<div className="laps-chart">
 								<ReactECharts option={lapsOptions} 
 									theme={'macarons'} 
-									style={{height: 400, width: '100%'}}/>
+									style={{height: 300, width: '100%'}}/>
 							</div>
 							<div className="laps-summary">
 								{lapSummary()}
