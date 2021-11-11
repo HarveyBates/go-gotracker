@@ -191,7 +191,7 @@ export default class Activity extends React.Component {
 							if (currentField === "altitude"){
 								series.push({
 									name: currentField,
-									color: 'rgba(190, 190, 190, 0.6)',
+									color: 'rgba(190, 190, 190, 0.2)',
 									lineStyle: {
 										width: 0
 									},
@@ -604,7 +604,6 @@ export default class Activity extends React.Component {
 				return titleCase;
 			}
 
-
 			return (
 				<div className="activity-page">
 					<div className="activity-summary">
@@ -636,7 +635,8 @@ export default class Activity extends React.Component {
 						<div className="chart">
 							<ReactECharts option={recordsOptions} 
 								theme={'macarons'} 
-								style={{height: 400, width: '100%'}}/>
+								style={{height: 400, width: '100%'}}
+							/>
 						</div>
 					</div>
 					<div className="lap-chart-summary">
