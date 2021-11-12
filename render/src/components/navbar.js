@@ -1,6 +1,6 @@
 // React imports 
 import React from 'react';
-import { BrowserRouter, Routes, Route, Switch, Link, withRouter } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Link } from "react-router-dom";
 // User imports 
 import "./navbar.css";
 import Activities from "../views/activities";

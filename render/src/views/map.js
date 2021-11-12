@@ -1,8 +1,9 @@
 /* eslint import/no-webpack-loader-syntax: off */
 import React from 'react';
+import queryString from 'query-string';
 import mapboxgl from '!mapbox-gl';
 import './map.css';
-import polyline from '@mapbox/polyline';
+import {InfluxDB} from '@influxdata/influxdb-client'
 
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX;
 
@@ -10,56 +11,58 @@ export default class Map extends React.Component {
 	constructor() {
 		super();
 		this.state = {
-			lat: -33.335,
-			lng: 150.521273,
-			zoom: 9,
+			records: [],
+			cntrCoords: [],
+			zoom: 13,
 		};
 		this.mapContainer = React.createRef();
-		this.polyline = "";
 	}
 
 	async componentDidMount() {
-		const response = await fetch('/activity/latest', {headers:{
+		// Get params from url
+		const params = queryString.parse(window.location.search);
+		// Get get activity summary
+		const reqUrl = `/activity/${params.sport}/${params.activity_id}`;
+		const response = await fetch(reqUrl, {headers:{
 			"Accept": "application/json",
 			"Content-Type": "application/json"}});
 		const data = await response.json();
 
-		this.polyline = data.Summary.map.summary_polyline;
-		console.log(this.polyline);
-		if (this.polyline != "") {
-			const decodedPoly = polyline.decode(this.polyline);
+		// Get latitude and longitude of activity
+		const influxToken = process.env.REACT_APP_INFLUX_DB;
+		const client = new InfluxDB({url: "http://localhost:8086", token: influxToken}).getQueryApi("user");
+		const recordsQuery = `from(bucket: "records") |> range(start: time(v: ${data.start_time}), stop: time(v: ${data.end_time})) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}") |> filter(fn: (r) => r["_field"] == "position_lat" or r["_field"] == "position_long")`
 
-			function flip(coords) {
-				var flipped = [];
-				var sumLat = 0;
-				var sumLng = 0;
-				for (var i = 0; i < coords.length; i++) {
-					var coord = coords[i].slice();
-					flipped.push([coord[1], coord[0]]);
-					sumLat += coord[1];
-					sumLng += coord[0]
-				}
-				var avLat = sumLat / coords.length;
-				var avLong = sumLng / coords.length;
-
-				var latlng = [avLat, avLong];
-
-				return {
-					flipped: flipped,
-					av: latlng
-				};
-			}
-
-			const coords = flip(decodedPoly);
-
-			const { lng, lat, zoom } = this.state;
+		const handleState = () => {
+			this.setState({
+				records: records,
+				cntrCoords: [data.swc_long, data.swc_lat]
+			});
 			const map = new mapboxgl.Map({
 				container: this.mapContainer.current,
 				style: 'mapbox://styles/mapbox/outdoors-v11',
-				center: coords.av,
-				zoom: zoom
+				center: this.state.cntrCoords,
+				zoom: this.state.zoom
 			});
-			
+
+			var latitude = [];
+			var longitude = [];
+			for (let i in this.state.records) {
+				var row = this.state.records[i];
+				var currentField = row._field;
+				if (currentField === "position_lat") {
+					latitude.push(row._value);
+				}
+				else if(currentField === "position_long"){
+					longitude.push(row._value);
+				}
+			}
+
+			var coords = [];
+			for (let i in latitude) {
+				coords.push([longitude[i], latitude[i]]);
+			}
+
 			map.on('load', () => {
 				map.addSource('route', {
 					'type': 'geojson',
@@ -68,7 +71,7 @@ export default class Map extends React.Component {
 						'properties': {},
 						'geometry': {
 							'type': 'LineString',
-							'coordinates': coords.flipped
+							'coordinates': coords
 						}
 					}
 				});
@@ -87,14 +90,34 @@ export default class Map extends React.Component {
 				});
 			});
 		}
+
+		var records = [];
+		client.queryRows(recordsQuery, {
+			next(row, tableMeta){
+				var record = tableMeta.toObject(row);
+				records.push(record);
+			},
+			error(error) {
+				console.log(error);
+			},
+			complete() {
+				handleState();
+			},
+		});
 	}
+
+
 	
 		
 	render() {
-		if (this.polyline != null) {
+		if (this.state.records.length !== 0) {
+
 			return (
-					<div ref={this.mapContainer} className="map-container" />
+				<div ref={this.mapContainer} className="map-container" />
 			);
+		} 
+		else {
+			return null
 		}
 	}
 

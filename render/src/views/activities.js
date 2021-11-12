@@ -1,7 +1,6 @@
 import React from 'react';
-import { withRouter } from "react-router";
 import queryString from 'query-string';
-import ReactECharts from 'echarts-for-react';
+import Plot from 'react-plotly.js';
 import { graphic } from 'echarts';
 import {InfluxDB} from '@influxdata/influxdb-client'
 import './activities.css';
@@ -28,7 +27,7 @@ export default class Activity extends React.Component {
 			start_time: "",
 			end_time: "",
 			sport: "",
-			smoothing: "10s"
+			smoothing: "5s"
 		};
 	}
 
@@ -88,7 +87,7 @@ export default class Activity extends React.Component {
 			// Add a bit of time to get the last data point
 			// By default end time is excluded from the query
 			var endDate = new Date(data.end_time);
-			var endDate = (endDate.getTime() + 1000000) / 1000;
+			endDate = (endDate.getTime() + 1000000) / 1000;
 			// Get laps 
 			const lapsQuery = `from(bucket: "laps") |> range(start: time(v: ${data.start_time}), stop: ${endDate}) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}")`
 
@@ -136,13 +135,7 @@ export default class Activity extends React.Component {
 										"Vertical Oscillation", "Form Power"]
 				var currentField = this.state.records[0]._field;
 				var series = [];
-				var arr = [];
 				
-				// Altitude limits
-				var minAlt = 0;
-				var maxAlt = 2000;
-				var altitudeSet = false;
-
 				// X-axis date fix
 				var startDate = new Date(this.state.start_time);
 
@@ -169,7 +162,7 @@ export default class Activity extends React.Component {
 				function getAverage(arr) {
 					var sum = 0;
 					for (let i = 0; i < arr.length; i++){
-						sum += arr[i][1];
+						sum += arr[i];
 					}
 					return sum / arr.length;
 				}
@@ -180,6 +173,9 @@ export default class Activity extends React.Component {
 				var avgPace = getPace(this.state.avg_speed);
 				var maxPace = getPace(this.state.max_speed);
 
+				var x = [];
+				var y = [];
+				var maxAlt = 0;
 				// Handle Records
 				var totalRows = 0;
 				for (let i in this.state.records) {
@@ -187,86 +183,60 @@ export default class Activity extends React.Component {
 					if (currentField !== row._field || totalRows === (this.state.records.length - 1)) {
 						// Append series if average is not zero
 						if (mainFields.indexOf(currentField) !== -1 && 
-								getAverage(arr) !== 0) {
+								getAverage(y) !== 0) {
+							var formattedName = formatTitle(currentField);
 							if (currentField === "altitude"){
 								series.push({
-									name: currentField,
-									color: 'rgba(190, 190, 190, 0.2)',
-									lineStyle: {
-										width: 0
-									},
-									areaStyle: {},
-									emphasis: {
-										focus: 'series'
-									},
-									z: 0,
-									type: "line",
-									smooth: true,
-									symbol: "none",
-									yAxisIndex: 2,
-									data: arr
+									type: 'scatter',
+									fill: 'tozeroy',
+									fillcolor: '#30464c',
+									x: x,
+									y: y, 
+									name: formattedName,
+									mode: 'none',
+									yaxis: 'y3'
 								});
 							}
 							else if (currentField === "heart_rate"){
 								series.push({
-									name: currentField,
-									color: '#FF4230',
-									emphasis: {
-										focus: 'series'
+									type: 'scatter',
+									line: {
+										color: '#e51704',
 									},
-									type: "line",
-									smooth: true,
-									z: 10,
-									symbol: "none",
-									data: arr
+									x: x,
+									y: y, 
+									name: formattedName,
+									mode: 'lines'
 								});
 							}
 							else if (currentField === "cadence"){
 								series.push({
-									name: currentField,
-									color: '#FFAA31',
-									emphasis: {
-										focus: 'series'
-									},
-									type: "line",
-									smooth: true,
-									symbol: "none",
-									data: arr
+									type: 'scatter',
+									x: x,
+									y: y, 
+									name: formattedName,
+									mode: 'lines'
 								});
 							}
 							else if (currentField === "speed"){
 								series.push({
-									name: currentField,
-									color: 'rgba(1, 152, 117, 1)',
-									emphasis: {
-										focus: 'series'
+									type: 'scatter',
+									line: {
+										color: '#049ae5',
 									},
-									type: "line",
-									smooth: true,
-									symbol: "none",
-									yAxisIndex: 1,
-									data: arr
+									x: x,
+									y: y, 
+									name: formattedName,
+									mode: 'lines',
+									yaxis: 'y2'
 								});
 							} 
 						}
 						currentField = row._field; // Assign new field to currentField
-						arr = []; // Reset array
+						x = [];
+						y = [];
 					} else {
-						// Set altitude min max limits on chart
-						if (currentField === "altitude") {
-							if (!altitudeSet && row._value !== null){
-								minAlt = row._value;
-								maxAlt = row._value;
-								altitudeSet = true;
-							}
-							if (row._value < minAlt && row._value !== null) {
-								minAlt = row._value;
-							}
-							if (row._value > maxAlt) {
-								maxAlt = row._value;
-							}
-						}
-						else if (currentField === "speed") {
+						if (currentField === "speed") {
 							if (!paceSet && row._value !== null && row._value !== 0){
 								minPace = row._value;
 								paceSet = true;
@@ -283,13 +253,18 @@ export default class Activity extends React.Component {
 							var mins = pace.slice(0, 2);
 							var secs = pace.slice(3);
 							var datePace = new Date(0, 0, 0, 0, mins, secs, 0);
-							arr.push([diff, datePace]);
+							x.push(diff);
+							y.push(datePace);
 						} 
 						else if (currentField === "altitude" || currentField === "heart_rate"){
-							arr.push([diff, Math.round(row._value)]);
-
+							if(row._value >= maxAlt) {
+								maxAlt = row._value;
+							}
+							x.push(diff);
+							y.push(Math.round(row._value));
 						} else{
-							arr.push([diff, row._value]);
+							x.push(diff);
+							y.push(row._value);
 						}
 					}
 					totalRows++;
@@ -310,7 +285,7 @@ export default class Activity extends React.Component {
 				var lapSeries = [];
 				var lapIndex = 1;
 				for (let i in this.state.laps){
-					var row = this.state.laps[i];
+					row = this.state.laps[i];
 					if (currentField !== row._field || totalRows === (this.state.laps.length - 1)) {
 						if(excludeLapFields.indexOf(currentField) === -1 && 
 							getAverage(lapArr) !== 0 &&
@@ -388,148 +363,6 @@ export default class Activity extends React.Component {
 				}
 			}
 
-			const recordsOptions = {
-				xAxis: {
-					name: "Time",
-					nameLocation: 'center',
-					nameGap: -15,
-					type: 'category',
-					axisLabel: {
-						color: 'rgba(255, 255, 255, 1)',
-					},
-					nameTextStyle: {
-						color: 'rgba(255, 255, 255, 1)'
-					}
-				},
-				yAxis: [
-					{
-						type: 'value',
-						position: 'left',
-						axisLabel: {
-							color: 'rgba(255, 255, 255, 1)',
-						},
-					},
-					{
-						type: 'time',
-						position: 'left',
-						inverse: true,
-						offset: 25,
-						axisLabel: {
-							color: 'rgba(1, 152, 117, 1)',
-							formatter: '{mm}:{ss}'
-						}
-					},
-					{
-						type: 'value',
-						position: 'right',
-						splitLine: {
-							show: false,
-						},
-						axisLabel: {
-							color: 'rgba(255, 255, 255, 1)',
-						},
-						min: Math.floor(minAlt),
-						max: Math.ceil(maxAlt + (0.1*maxAlt))
-					},
-				],
-				tooltip: {
-					show: true,
-					trigger: 'axis',
-					axisPointer: {
-						type: 'cross',
-						label: {
-							precision: '0'
-						}
-					},
-				},
-				toolbox: {
-					show: true,
-					right: 100,
-					iconStyle: {
-						borderColor: '#fff',
-					},
-					feature: {
-						dataZoom: {},
-					}
-				},
-				dataZoom: [
-					{
-						show: true,
-						backgroundColor: '#13252A',
-						dataBackground: {
-							areaStyle: {
-								color: 'rgba(250, 0, 0, 1)',
-							},
-						},
-						selectedDataBackground: {
-							areaStyle: {
-								color: 'rgba(0, 255, 0, 1)',
-							},
-						},
-						borderColor: '#13252A',
-						realtime: true,
-						start: 0,
-						end: 100,
-					}
-				],
-				series: series
-			};
-
-
-			const lapsOptions = {
-				xAxis: {
-					name: "Lap",
-					nameLocation: 'center',
-					nameGap: 25,
-					min: 0,
-					max: this.state.num_laps,
-					type: 'category',
-				},
-				yAxis: [
-				{
-					type: 'time',
-					inverse: true,
-					axisLabel: {
-						formatter: '{mm}:{ss}',
-						color: 'rgba(1, 152, 117, 1)'
-					},
-					position: 'left',
-				},
-				{
-					type: 'value',
-					position: 'right',
-					axisLabel: {
-						color: 'rgba(240, 52, 52, 1)',
-					},
-				}
-				],
-				tooltip: {
-					show: true,
-					formatter: function (params) {
-						var date = new Date(params[0].data[1]);
-						var pace = date.getMinutes() + ":" + date.getSeconds();
-						try {
-							var hr = params[1].data[1];
-						} catch {
-							var hr = 0;
-						}
-						return (
-							"Pace: <b>" + pace + "</b><br>Heart Rate: <b>" + hr + "</b>"
-						);
-					},
-					trigger: 'axis',
-				},
-				toolbox: {
-					show: true,
-					right: 100,
-					feature: {
-						dataZoom: {},
-					}
-				},
-				series: [lapSeries[3],
-						lapSeries[1]
-				]
-			};
 
 			function formatWord(str) {
 				const titleCase = str
@@ -604,6 +437,41 @@ export default class Activity extends React.Component {
 				return titleCase;
 			}
 
+			var layout = {
+				autosize: true, 
+				plot_bgcolor: '#13252A', 
+				paper_bgcolor: '#13252A', 
+				font: { 
+					color: '#CECECE' 
+				},
+				margin: {
+					t: 60,
+					b: 40
+				},
+				xaxis: {
+					tickangle: 0,
+					nticks: 10,
+					domain: [0.05, 0.95]
+				},
+				yaxis: { // Normal
+					rangemode: 'tozero'
+				},
+				yaxis2: { // Speed
+					autorange: "reversed",
+					overlaying: 'y',
+					side: 'right',
+					tickformat: '%M:%S',
+				},
+				yaxis3: { // Altitude
+					range: [0, maxAlt*2],
+					overlaying: 'y',
+					side: 'left',
+					anchor: 'free',
+					position: 0
+				},
+				showlegend: false
+			}
+
 			return (
 				<div className="activity-page">
 					<div className="activity-summary">
@@ -628,14 +496,21 @@ export default class Activity extends React.Component {
 							<h5>Max: {this.state.max_running_cadence}</h5>
 						</div>
 					</div>
+					<div className="map-box">
+						<div className="section-head">
+							<h3>Map</h3>
+						</div>
+						<Map/>
+					</div>
 					<div className="main-chart-summary">
 						<div className="section-head">
 							<h3>Record</h3>
 						</div>
 						<div className="chart">
-							<ReactECharts option={recordsOptions} 
-								theme={'macarons'} 
-								style={{height: 400, width: '100%'}}
+							<Plot data={series} 
+								layout={layout}
+								config={{responsive: true}}
+								className="record-chart"
 							/>
 						</div>
 					</div>
@@ -645,9 +520,6 @@ export default class Activity extends React.Component {
 						</div>
 						<div className="lap-chart-section">
 							<div className="laps-chart">
-								<ReactECharts option={lapsOptions} 
-									theme={'macarons'} 
-									style={{height: 300, width: '100%'}}/>
 							</div>
 							<div className="laps-summary">
 								{lapSummary()}
