@@ -13,7 +13,9 @@ export default class Map extends React.Component {
 		this.state = {
 			records: [],
 			cntrCoords: [],
-			zoom: props.zoom,
+			map: null,
+			zoom: 12,
+			mapIsLoaded: false
 		};
 		this.mapContainer = React.createRef();
 	}
@@ -43,9 +45,9 @@ export default class Map extends React.Component {
 				container: this.mapContainer.current,
 				style: 'mapbox://styles/mapbox/outdoors-v11',
 				center: this.state.cntrCoords,
-				zoom: this.state.zoom
+				zoom: 12
 			});
-
+			
 			var latitude = [];
 			var longitude = [];
 			for (let i in this.state.records) {
@@ -74,10 +76,8 @@ export default class Map extends React.Component {
 				pointCoords.push(geoJson);
 			}
 
-			
-
 			let hoverPointId = null;
-			map.on('load', () => {
+			map.once('load', () => {
 				map.addSource('route', {
 					'type': 'geojson',
 					'data': {
@@ -158,7 +158,6 @@ export default class Map extends React.Component {
 					hoverPointId = null;
 				});
 
-
 				const bounds = new mapboxgl.LngLatBounds(
 					coords[0],
 					coords[0]
@@ -170,6 +169,7 @@ export default class Map extends React.Component {
 					padding: 20
 				});
 
+				this.setState({mapIsLoaded: true, map: map});
 			});
 		}
 
@@ -188,15 +188,33 @@ export default class Map extends React.Component {
 		});
 	}
 
-	componentDidUpdate(props) {
-		console.log(props);
-		console.log("Update:", this.props.zoom);
+	componentDidUpdate(prevProps, currentState) {
+		if (!this.state.mapIsLoaded){
+			return;
+		}
+		if (this.state.map !== null && prevProps.zoom !== currentState.zoom) {
+			console.log("map", this.state.map);
+			console.log("Setting zoom");
+			console.log("Prev:", prevProps.zoom, "Crnt:", currentState.zoom);
+			this.state.map.setFeatureState(
+				{source: 'point-route', id: currentState.zoom},
+				{hover: false}
+			);
+			this.state.map.setFeatureState(
+				{source: 'point-route', id: prevProps.zoom},
+				{hover: true}
+			);
+			//this.state.map.setZoom(prevProps.zoom);
+			this.setState({zoom: prevProps.zoom});
+			console.log("Zoom set");
+		}
 	}
+
 		
 	render() {
 		if (this.state.records.length !== 0) {
 			return (
-				<div key={this.props.zoom} ref={this.mapContainer} className="map-container" />
+				<div key={"main-map"} ref={this.mapContainer} className="map-container" />
 			);
 		} 
 		else {

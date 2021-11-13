@@ -476,7 +476,7 @@ export default class Activity extends React.Component {
 
 			const incZoom = () => {
 				this.setState({
-					zoom: this.state.zoom + 10
+					zoom: this.state.zoom + 1
 				});
 			}
 
@@ -511,7 +511,7 @@ export default class Activity extends React.Component {
 						<button onClick={incZoom} type="button">
 							        Toggle Show
 						      </button>
-						<Map key={this.state.zoom} zoom={this.state.zoom}/>
+						<Map key={"test-map"} zoom={this.state.zoom}/>
 					</div>
 					<div className="main-chart-summary">
 						<div className="section-head">
