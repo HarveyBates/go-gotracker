@@ -38,6 +38,7 @@ export default class Map extends React.Component {
 				records: records,
 				cntrCoords: [data.swc_long, data.swc_lat]
 			});
+
 			const map = new mapboxgl.Map({
 				container: this.mapContainer.current,
 				style: 'mapbox://styles/mapbox/outdoors-v11',
@@ -59,10 +60,21 @@ export default class Map extends React.Component {
 			}
 
 			var coords = [];
+			var pointCoords = []; 
 			for (let i in latitude) {
 				coords.push([longitude[i], latitude[i]]);
+				var geoJson = {
+					"type": "Feature",
+					"geometry": {
+						"type": "Point",
+						"coordinates": [longitude[i], latitude[i]]
+					},
+					"id": parseFloat(i)
+				}
+				pointCoords.push(geoJson);
 			}
 
+			let hoverPointId = null;
 			map.on('load', () => {
 				map.addSource('route', {
 					'type': 'geojson',
@@ -73,6 +85,13 @@ export default class Map extends React.Component {
 							'type': 'LineString',
 							'coordinates': coords
 						}
+					}
+				});
+				map.addSource('point-route', {
+					'type': 'geojson',
+					'data': {
+						"type": "FeatureCollection",
+						"features": pointCoords 
 					}
 				});
 				map.addLayer({
@@ -88,6 +107,67 @@ export default class Map extends React.Component {
 						'line-width': 3
 					}
 				});
+				map.addLayer({
+					'id': 'route-points',
+					'type': 'circle',
+					'source': 'point-route',
+					'paint': {
+						'circle-color': '#ee6611',
+						'circle-radius': {
+							'base': 10,
+							'stops': [
+								[12, 8],
+								[22, 6]
+							]
+						},
+						'circle-opacity': [
+							'case',
+							['boolean', ['feature-state', 'hover'], false],
+							1, 
+							0	
+						]
+					}
+				});
+				map.on('mousemove', 'route-points', (e) => {
+					if (e.features.length > 0) {
+						if (hoverPointId !== null) {
+							map.setFeatureState({
+								source: 'point-route',
+								id: hoverPointId
+							}, 
+							{
+								hover: false
+							});
+						}
+						hoverPointId = e.features[0].id;
+						map.setFeatureState(
+							{source: 'point-route', id: hoverPointId},
+							{hover: true}
+						);
+					}
+				});
+				map.on('mouseleave', 'route-points', () => {
+					if (hoverPointId !== null) {
+						map.setFeatureState(
+							{ source: 'point-route', id: hoverPointId },
+							{ hover: false }
+						);
+					}
+					hoverPointId = null;
+				});
+
+
+				const bounds = new mapboxgl.LngLatBounds(
+					coords[0],
+					coords[0]
+				);
+				for (const coord of coords) {
+					bounds.extend(coord);
+				}
+				map.fitBounds(bounds, {
+					padding: 20
+				});
+
 			});
 		}
 
