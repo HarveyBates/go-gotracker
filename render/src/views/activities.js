@@ -10,6 +10,7 @@ import Map from './map';
 export default class Activity extends React.Component {
 	constructor() {
 		super();
+		this.mapContainer = React.createRef();
 		this.state = {
 			activity: [],
 			records: [],
@@ -27,10 +28,10 @@ export default class Activity extends React.Component {
 			start_time: "",
 			end_time: "",
 			sport: "",
-			smoothing: "5s"
+			smoothing: "10s",
+			zoom: 10
 		};
 	}
-
 
 	async componentDidMount() {
 		// Initial state
@@ -52,22 +53,24 @@ export default class Activity extends React.Component {
 			const recordsQuery = `from(bucket: "records") |> range(start: time(v: ${data.start_time}), stop: time(v: ${data.end_time})) |> filter(fn: (r) => r["_measurement"] == "${data.activity_name}") |> aggregateWindow(every: ${this.state.smoothing}, fn: mean)`
 
 			const handleState = () => {
-				this.setState({	activity: data, 
-								records: records,
-								laps: laps,
-								activity_name: data.activity_name, 
-								activity_id: data.activity_id,
-								total_distance: data.total_distance,
-								avg_heart_rate: data.avg_heart_rate,
-								max_heart_rate: data.max_heart_rate,
-								avg_running_cadence: data.avg_running_cadence,
-								max_running_cadence: data.max_running_cadence,
-								avg_speed: data.avg_speed,
-								max_speed: data.max_speed,
-								num_laps: data.num_laps,
-								start_time: data.start_time,
-								end_time: data.end_time,
-								sport: data.sport });
+				this.setState({	
+					activity: data, 
+					records: records,
+					laps: laps,
+					activity_name: data.activity_name, 
+					activity_id: data.activity_id,
+					total_distance: data.total_distance,
+					avg_heart_rate: data.avg_heart_rate,
+					max_heart_rate: data.max_heart_rate,
+					avg_running_cadence: data.avg_running_cadence,
+					max_running_cadence: data.max_running_cadence,
+					avg_speed: data.avg_speed,
+					max_speed: data.max_speed,
+					num_laps: data.num_laps,
+					start_time: data.start_time,
+					end_time: data.end_time,
+					sport: data.sport
+				});
 			}
 
 			var records = [];
@@ -78,12 +81,12 @@ export default class Activity extends React.Component {
 				},
 				error(error) {
 					console.error(error)
-				},
-				complete() {
+				}, 
+				complete(){
 					handleState();
-				},
+				}
 			})
-
+			
 			// Add a bit of time to get the last data point
 			// By default end time is excluded from the query
 			var endDate = new Date(data.end_time);
@@ -109,7 +112,6 @@ export default class Activity extends React.Component {
 			console.log(error);
 		}
 	}
-
 
 	render() {
 
@@ -472,6 +474,12 @@ export default class Activity extends React.Component {
 				showlegend: false
 			}
 
+			const incZoom = () => {
+				this.setState({
+					zoom: this.state.zoom + 10
+				});
+			}
+
 			return (
 				<div className="activity-page">
 					<div className="activity-summary">
@@ -500,7 +508,10 @@ export default class Activity extends React.Component {
 						<div className="section-head">
 							<h3>Map</h3>
 						</div>
-						<Map/>
+						<button onClick={incZoom} type="button">
+							        Toggle Show
+						      </button>
+						<Map key={this.state.zoom} zoom={this.state.zoom}/>
 					</div>
 					<div className="main-chart-summary">
 						<div className="section-head">

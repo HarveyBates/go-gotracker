@@ -39,6 +39,12 @@
 	overflow: hidden;
 }
 
+.map-container {
+	margin: 1rem;
+	min-height: 300px;
+	border-radius: 1rem;
+}
+
 .activity-summary{
 	display: flex;
 	flex-direction: row;

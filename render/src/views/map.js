@@ -8,12 +8,12 @@ import {InfluxDB} from '@influxdata/influxdb-client'
 mapboxgl.accessToken = process.env.REACT_APP_MAPBOX;
 
 export default class Map extends React.Component {
-	constructor() {
-		super();
+	constructor(props) {
+		super(props);
 		this.state = {
 			records: [],
 			cntrCoords: [],
-			zoom: 13,
+			zoom: props.zoom,
 		};
 		this.mapContainer = React.createRef();
 	}
@@ -73,6 +73,8 @@ export default class Map extends React.Component {
 				}
 				pointCoords.push(geoJson);
 			}
+
+			
 
 			let hoverPointId = null;
 			map.on('load', () => {
@@ -186,14 +188,15 @@ export default class Map extends React.Component {
 		});
 	}
 
-
-	
+	componentDidUpdate(props) {
+		console.log(props);
+		console.log("Update:", this.props.zoom);
+	}
 		
 	render() {
 		if (this.state.records.length !== 0) {
-
 			return (
-				<div ref={this.mapContainer} className="map-container" />
+				<div key={this.props.zoom} ref={this.mapContainer} className="map-container" />
 			);
 		} 
 		else {

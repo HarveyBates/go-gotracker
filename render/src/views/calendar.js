@@ -1,8 +1,4 @@
 import React from 'react'
-import { useNavigate } from "react-router-dom";
-import { BrowserRouter, Routes, Route, Switch, Link, withRouter } from "react-router-dom";
-import { Navigate } from "react-router-dom";
-import Activities from "../views/activities";
 import FullCalendar from '@fullcalendar/react' 
 import dayGridPlugin from '@fullcalendar/daygrid'
 import interactionPlugin from "@fullcalendar/interaction"
