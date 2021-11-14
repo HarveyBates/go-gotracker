@@ -28,7 +28,7 @@ export default class Activity extends React.Component {
 			start_time: "",
 			end_time: "",
 			sport: "",
-			smoothing: "10s",
+			smoothing: "1s",
 			zoom: 10
 		};
 	}
@@ -441,6 +441,7 @@ export default class Activity extends React.Component {
 
 			var layout = {
 				autosize: true, 
+				hovermode: "x unified",
 				plot_bgcolor: '#13252A', 
 				paper_bgcolor: '#13252A', 
 				font: { 
@@ -474,10 +475,14 @@ export default class Activity extends React.Component {
 				showlegend: false
 			}
 
-			const incZoom = () => {
-				this.setState({
-					zoom: this.state.zoom + 1
-				});
+			const plotCursor = (fig) => {
+				console.log("Selected");
+				var zStart= fig["xaxis.range[0]"];
+				var zEnd = fig["xaxis.range[1]"];
+				console.log(Math.floor(zStart), Math.ceil(zEnd));
+				//this.setState({
+				//	zoom: pos
+				//});
 			}
 
 			return (
@@ -508,9 +513,6 @@ export default class Activity extends React.Component {
 						<div className="section-head">
 							<h3>Map</h3>
 						</div>
-						<button onClick={incZoom} type="button">
-							        Toggle Show
-						      </button>
 						<Map key={"test-map"} zoom={this.state.zoom}/>
 					</div>
 					<div className="main-chart-summary">
@@ -521,6 +523,7 @@ export default class Activity extends React.Component {
 							<Plot data={series} 
 								layout={layout}
 								config={{responsive: true}}
+								onRelayout={(fig) => plotCursor(fig)}
 								className="record-chart"
 							/>
 						</div>

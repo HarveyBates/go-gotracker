@@ -130,33 +130,6 @@ export default class Map extends React.Component {
 						]
 					}
 				});
-				map.on('mousemove', 'route-points', (e) => {
-					if (e.features.length > 0) {
-						if (hoverPointId !== null) {
-							map.setFeatureState({
-								source: 'point-route',
-								id: hoverPointId
-							}, 
-							{
-								hover: false
-							});
-						}
-						hoverPointId = e.features[0].id;
-						map.setFeatureState(
-							{source: 'point-route', id: hoverPointId},
-							{hover: true}
-						);
-					}
-				});
-				map.on('mouseleave', 'route-points', () => {
-					if (hoverPointId !== null) {
-						map.setFeatureState(
-							{ source: 'point-route', id: hoverPointId },
-							{ hover: false }
-						);
-					}
-					hoverPointId = null;
-				});
 
 				const bounds = new mapboxgl.LngLatBounds(
 					coords[0],
@@ -193,9 +166,6 @@ export default class Map extends React.Component {
 			return;
 		}
 		if (this.state.map !== null && prevProps.zoom !== currentState.zoom) {
-			console.log("map", this.state.map);
-			console.log("Setting zoom");
-			console.log("Prev:", prevProps.zoom, "Crnt:", currentState.zoom);
 			this.state.map.setFeatureState(
 				{source: 'point-route', id: currentState.zoom},
 				{hover: false}
@@ -204,9 +174,7 @@ export default class Map extends React.Component {
 				{source: 'point-route', id: prevProps.zoom},
 				{hover: true}
 			);
-			//this.state.map.setZoom(prevProps.zoom);
 			this.setState({zoom: prevProps.zoom});
-			console.log("Zoom set");
 		}
 	}
 
